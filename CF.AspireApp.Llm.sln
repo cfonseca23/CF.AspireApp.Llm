@@ -1,0 +1,48 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35327.3
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CF.AspireApp.Llm.AppHost", "CF.AspireApp.Llm.AppHost\CF.AspireApp.Llm.AppHost.csproj", "{72E1A0B3-2BA4-46D9-9AA0-054B4D1B85A7}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CF.AspireApp.Llm.ServiceDefaults", "CF.AspireApp.Llm.ServiceDefaults\CF.AspireApp.Llm.ServiceDefaults.csproj", "{C7CE2076-2BD1-4839-BA30-AC60288BFEC3}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CF.AspireApp.Llm.ApiService", "CF.AspireApp.Llm.ApiService\CF.AspireApp.Llm.ApiService.csproj", "{59E08D43-6C38-4BDC-9218-C99CB25EE30C}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CF.AspireApp.Llm.Web", "CF.AspireApp.Llm.Web\CF.AspireApp.Llm.Web.csproj", "{A99B3CD4-B2F7-430D-A0BE-AA93BE197B6A}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CF.AspireApp.Llm.Tests", "CF.AspireApp.Llm.Tests\CF.AspireApp.Llm.Tests.csproj", "{23AE0757-C264-4EB9-B2B0-5C1583D64FE1}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{72E1A0B3-2BA4-46D9-9AA0-054B4D1B85A7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{72E1A0B3-2BA4-46D9-9AA0-054B4D1B85A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{72E1A0B3-2BA4-46D9-9AA0-054B4D1B85A7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{72E1A0B3-2BA4-46D9-9AA0-054B4D1B85A7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C7CE2076-2BD1-4839-BA30-AC60288BFEC3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C7CE2076-2BD1-4839-BA30-AC60288BFEC3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C7CE2076-2BD1-4839-BA30-AC60288BFEC3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C7CE2076-2BD1-4839-BA30-AC60288BFEC3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{59E08D43-6C38-4BDC-9218-C99CB25EE30C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{59E08D43-6C38-4BDC-9218-C99CB25EE30C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{59E08D43-6C38-4BDC-9218-C99CB25EE30C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{59E08D43-6C38-4BDC-9218-C99CB25EE30C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A99B3CD4-B2F7-430D-A0BE-AA93BE197B6A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A99B3CD4-B2F7-430D-A0BE-AA93BE197B6A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A99B3CD4-B2F7-430D-A0BE-AA93BE197B6A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A99B3CD4-B2F7-430D-A0BE-AA93BE197B6A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{23AE0757-C264-4EB9-B2B0-5C1583D64FE1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{23AE0757-C264-4EB9-B2B0-5C1583D64FE1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{23AE0757-C264-4EB9-B2B0-5C1583D64FE1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{23AE0757-C264-4EB9-B2B0-5C1583D64FE1}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F309DB0E-EA4A-43D3-980A-F52328B430CB}
+	EndGlobalSection
+EndGlobal

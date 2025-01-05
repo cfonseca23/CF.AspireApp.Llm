@@ -1,6 +1,7 @@
 using CF.AspireApp.Llm.ApiService.Model;
 
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.SemanticKernel.Agents;
 
 using SK.Kernel;
 
@@ -40,6 +41,63 @@ app.MapGet("/weatherforecast", () =>
         .ToArray();
     return forecast;
 });
+
+app.MapPost("/stream-agent-chat-history", async (KernelService kernelService, [FromBody] UserInputAgentChatHistoryRequest request, HttpContext context) =>
+{
+    context.Response.ContentType = "text/event-stream";
+    var cancellationToken = context.RequestAborted;
+
+    var channel = Channel.CreateUnbounded<string>();
+    var writer = channel.Writer;
+
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+#pragma warning disable SKEXP0110
+            IEnumerable<ChatCompletionAgent> agents = request.Agents.Select(agentInfo => new ChatCompletionAgent
+            {
+                Name = agentInfo.Name,
+                Instructions = agentInfo.Instructions
+            }).ToList();
+#pragma warning restore SKEXP0110
+
+            await foreach (var (role, content, modelId) in kernelService.GetStreamingAgentChatMessageContentsAsync(request.UserInput, request.ChatHistory, agents, cancellationToken: cancellationToken))
+            {
+                var structuredMessage = new
+                {
+                    role,
+                    content,
+                    modelId
+                };
+
+                var jsonMessage = JsonSerializer.Serialize(structuredMessage);
+                await writer.WriteAsync($"data: {jsonMessage}\n\n", cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error: {ex.Message}");
+            writer.TryComplete(ex);
+        }
+        finally
+        {
+            writer.TryComplete();
+        }
+    });
+
+    await foreach (var message in channel.Reader.ReadAllAsync(cancellationToken))
+    {
+        if (cancellationToken.IsCancellationRequested)
+            break;
+
+        var bytes = Encoding.UTF8.GetBytes(message);
+        await context.Response.Body.WriteAsync(bytes, 0, bytes.Length, cancellationToken);
+        await context.Response.Body.FlushAsync(cancellationToken);
+    }
+});
+
+
 
 app.MapPost("/stream-text-chat-history", async (KernelService kernelService, [FromBody] UserInputChatHistoryRequest request, HttpContext context) =>
 {
@@ -92,11 +150,6 @@ app.MapPost("/stream-text-chat-history", async (KernelService kernelService, [Fr
         await context.Response.Body.FlushAsync(cancellationToken);
     }
 });
-
-
-
-
-
 app.MapPost("/stream-text", async (KernelService kernelService, [FromBody] UserInputRequest request, HttpContext context) =>
 {
     context.Response.ContentType = "text/event-stream";
@@ -138,13 +191,6 @@ app.MapPost("/stream-text", async (KernelService kernelService, [FromBody] UserI
         await context.Response.Body.FlushAsync(cancellationToken);
     }
 });
-
-
-
-
-
-
-
 
 app.MapDefaultEndpoints();
 

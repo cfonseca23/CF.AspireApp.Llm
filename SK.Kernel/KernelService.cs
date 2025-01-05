@@ -75,6 +75,41 @@ namespace SK.Kernel
             }
         }
 
+        public async IAsyncEnumerable<(string Role, string Content, string ModelId)> GetStreamingAgentChatMessageContentsAsync(string userInput, ChatHistory? history, IEnumerable<ChatCompletionAgent> agents, PromptExecutionSettings? executionSettings = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            history ??= new ChatHistory();
+            if (!string.IsNullOrWhiteSpace(userInput))
+            {
+                history.AddUserMessage(userInput);
+            }
+
+            IEnumerable<ChatCompletionAgent> agentsLocal = agents.Select(agentInfo => new ChatCompletionAgent
+            {
+                Name = agentInfo.Name,
+                Instructions = agentInfo.Instructions,
+                Kernel = _kernel
+            });
+
+            AgentGroupChat chat = new(agentsLocal.ToArray());
+
+            chat.AddChatMessages(history);
+            chat.ExecutionSettings.TerminationStrategy.MaximumIterations = 10;
+
+            string lastAgent = string.Empty;
+            await foreach (var response in chat.InvokeStreamingAsync(cancellationToken: cancellationToken))
+            {
+                if (!lastAgent.Equals(response.AuthorName, StringComparison.Ordinal))
+                {
+                    lastAgent = response.AuthorName;
+                }
+
+                yield return (response.Role.ToString(), response.Content, response.ModelId);
+            }
+        }
+
+
+
+
 
         public IAsyncEnumerable<StreamingKernelContent> GetResponseStreamed(string userInput, ChatHistory? history)
         {

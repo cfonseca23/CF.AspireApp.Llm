@@ -6,6 +6,7 @@ using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.SemanticKernel.ChatCompletion;
 using CF.AspireApp.Llm.Web.Components.Pages.Llm.Model;
+using System.Reflection;
 
 namespace CF.AspireApp.Llm.Web
 {
@@ -187,6 +188,101 @@ namespace CF.AspireApp.Llm.Web
                 throw;
             }
         }
+
+        #endregion
+
+        #region agentes
+
+        public async IAsyncEnumerable<StreamingMessageAgent?> GetLinesWithAgentHistoryAsync(string userInput, ChatHistory chatHistory, List<ChatCompletionAgent> agents, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrEmpty(userInput))
+            {
+                throw new ArgumentException("User input is required.", nameof(userInput));
+            }
+
+            var url = "stream-agent-chat-history";
+
+            var requestBody = new
+            {
+                userInput,
+                chatHistory,
+                agents
+            };
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, url);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+            request.SetBrowserResponseStreamingEnabled(true);
+            request.Content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
+
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Sending HTTP request to {url}");
+            var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Response received: {response.StatusCode}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Response is successful, starting to read stream");
+                using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Response stream obtained");
+                using var reader = new StreamReader(responseStream);
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Stream opened for reading");
+
+                string? line;
+                while ((line = await reader.ReadLineAsync(cancellationToken)) != null)
+                {
+                    if (line.StartsWith("data:"))
+                    {
+                        var jsonData = line.Substring(5).Trim(); // Quitar el prefijo "data:"
+                        var message = JsonSerializer.Deserialize<StreamingMessageAgent>(jsonData);
+
+                        // Procesar el contenido estructurado
+                        if (message != null)
+                        {
+                            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Message Content: {message.content}");
+                            yield return message;
+                        }
+                    }
+                }
+
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] End of stream");
+            }
+            else
+            {
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Server response code: {response.StatusCode}");
+                yield return null;
+            }
+        }
+
+        public async Task StartTextStreamWithAgentHistoryAsync(string userInput, ChatHistory chatHistory, List<ChatCompletionAgent> agents, Func<StreamingMessageAgent, Task> onMessageReceived, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrEmpty(userInput))
+            {
+                throw new ArgumentException("User input is required.", nameof(userInput));
+            }
+
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] StartTextStreamWithAgentHistoryAsync started");
+
+            try
+            {
+                await foreach (var message in GetLinesWithAgentHistoryAsync(userInput, chatHistory, agents, cancellationToken))
+                {
+                    if (message != null)
+                    {
+                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Processing message: {message.content}");
+                        await onMessageReceived(message);
+                    }
+
+                    await Task.Yield();
+                }
+
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] End of stream processing");
+            }
+            catch (Exception ex) when (!(ex is OperationCanceledException))
+            {
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Error in StartTextStreamWithAgentHistoryAsync: {ex.Message}");
+                throw;
+            }
+        }
+
 
         #endregion
     }

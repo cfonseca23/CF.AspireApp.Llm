@@ -1,0 +1,17 @@
+﻿@using Microsoft.SemanticKernel
+@using Microsoft.SemanticKernel.ChatCompletion
+@using System.Text.Json
+
+<div class="chat-message">
+    <strong>@Message.Role.ToString():</strong> @((MarkupString)Markdig.Markdown.ToHtml(Message.Content!))
+</div>
+
+@code {
+    [Parameter]
+    public ChatMessageContent Message { get; set; } = default!;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+    }
+}

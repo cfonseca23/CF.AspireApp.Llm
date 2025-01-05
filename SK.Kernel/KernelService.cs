@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using SK.Kernel;
 using System.Runtime.CompilerServices;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+using SK.Kernel.Plugins;
 
 #pragma warning disable SKEXP0001
 #pragma warning disable SKEXP0110
@@ -75,6 +76,29 @@ namespace SK.Kernel
                 yield return messageContent;
             }
         }
+
+        public async IAsyncEnumerable<(string AuthorName, string Role, string Content, string ModelId, DateTime Timestamp)> GetDetailedStreamingChatMessageToolContentsAsync(string userInput, ChatHistory? history, PromptExecutionSettings? executionSettings = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            history ??= new ChatHistory();
+            if (!string.IsNullOrWhiteSpace(userInput))
+            {
+                history.AddUserMessage(userInput);
+            }
+            var kerneltool = _kernel.Clone();
+            kerneltool.ImportPluginFromType<TimePlugin>();
+
+            executionSettings = executionSettings ?? new PromptExecutionSettings() {
+                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(),
+            };
+
+            var currentDay = await kerneltool.InvokeAsync("TimePlugin", "DayOfWeek");
+            var chatCompletionService = kerneltool.GetRequiredService<IChatCompletionService>();
+            await foreach (var messageContent in chatCompletionService.GetStreamingChatMessageContentsAsync(history, executionSettings, kerneltool, cancellationToken))
+            {
+                yield return (messageContent.AuthorName, messageContent.Role.ToString(), messageContent.Content, messageContent.ModelId, DateTime.UtcNow);
+            }
+        }
+
 
         public async IAsyncEnumerable<(string AuthorName, string Role, string Content, string ModelId)> GetStreamingAgentChatMessageContentsAsync(string userInput, ChatHistory? history, IEnumerable<ChatCompletionAgent> agents, PromptExecutionSettings? executionSettings = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {

@@ -4,7 +4,17 @@ public record StreamingMessageAgent(
     string authorName,
     string role,
     string content,
-    string modelId
+    string modelId,
+    string time
+);
+
+
+public record StreamingMessageTool(
+    string authorName,
+    string role,
+    string content,
+    string modelId,
+    string time
 );
 
 

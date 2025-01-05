@@ -88,7 +88,8 @@ namespace SK.Kernel
             kerneltool.ImportPluginFromType<TimePlugin>();
 
             executionSettings = executionSettings ?? new PromptExecutionSettings() {
-                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(),
+                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
+                //ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions
             };
 
             var currentDay = await kerneltool.InvokeAsync("TimePlugin", "DayOfWeek");

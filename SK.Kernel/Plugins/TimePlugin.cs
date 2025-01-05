@@ -26,7 +26,8 @@ public sealed class TimePlugin
         /// </example>
         /// <returns> The current date </returns>
         [KernelFunction, Description("Get the current date")]
-        public string Today(IFormatProvider? formatProvider = null) =>
+        [return: Description("Get the current date")]
+    public string Today(IFormatProvider? formatProvider = null) =>
             // Example: Sunday, 12 January, 2025
             this.Date(formatProvider);
 

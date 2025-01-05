@@ -1,0 +1,12 @@
+﻿@if (IsVisible)
+{
+    <div class="d-flex justify-content-center mt-3">
+        <div class="spinner-border text-primary" role="status">
+            <span class="sr-only">Procesando...</span>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+}

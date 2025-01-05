@@ -12,7 +12,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CF.AspireApp.Llm.Web", "CF.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CF.AspireApp.Llm.Tests", "CF.AspireApp.Llm.Tests\CF.AspireApp.Llm.Tests.csproj", "{23AE0757-C264-4EB9-B2B0-5C1583D64FE1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SK.Kernel", "SK.Kernel\SK.Kernel.csproj", "{A78E55A2-0625-468B-BDFF-78A4B7D1B379}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SK.Kernel", "SK.Kernel\SK.Kernel.csproj", "{A78E55A2-0625-468B-BDFF-78A4B7D1B379}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

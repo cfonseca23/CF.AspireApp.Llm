@@ -1,0 +1,21 @@
+﻿<EditForm Model="@this" OnValidSubmit="OnSubmit">
+    <InputText placeholder="Escribe tu mensaje aquí..." @bind-Value="UserInput" required disabled="@IsStreaming" />
+    <button type="submit" disabled="@IsSendButtonDisabled">Enviar</button>
+</EditForm>
+
+@code {
+    [Parameter] public EventCallback<string> OnMessageSubmit { get; set; }
+    [Parameter] public bool IsStreaming { get; set; }
+
+    private string UserInput { get; set; } = string.Empty;
+    private bool IsSendButtonDisabled => string.IsNullOrWhiteSpace(UserInput) || IsStreaming;
+
+    private async Task OnSubmit()
+    {
+        if (OnMessageSubmit.HasDelegate)
+        {
+            await OnMessageSubmit.InvokeAsync(UserInput);
+            UserInput = string.Empty;
+        }
+    }
+}

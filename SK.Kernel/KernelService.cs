@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using SK.Kernel;
 using System.Runtime.CompilerServices;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
 
 #pragma warning disable SKEXP0001
 #pragma warning disable SKEXP0110
@@ -75,7 +76,7 @@ namespace SK.Kernel
             }
         }
 
-        public async IAsyncEnumerable<(string Role, string Content, string ModelId)> GetStreamingAgentChatMessageContentsAsync(string userInput, ChatHistory? history, IEnumerable<ChatCompletionAgent> agents, PromptExecutionSettings? executionSettings = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        public async IAsyncEnumerable<(string AuthorName, string Role, string Content, string ModelId)> GetStreamingAgentChatMessageContentsAsync(string userInput, ChatHistory? history, IEnumerable<ChatCompletionAgent> agents, PromptExecutionSettings? executionSettings = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             history ??= new ChatHistory();
             if (!string.IsNullOrWhiteSpace(userInput))
@@ -83,17 +84,43 @@ namespace SK.Kernel
                 history.AddUserMessage(userInput);
             }
 
-            IEnumerable<ChatCompletionAgent> agentsLocal = agents.Select(agentInfo => new ChatCompletionAgent
+            var kernelJarvis = _kernel.Clone();
+            var settings = new OpenAIPromptExecutionSettings
+            {
+                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(),
+                Temperature = 0.0
+            };
+
+
+            var agentJarvis = new ChatCompletionAgent
+            {
+                Name = "Jarvis",
+                Instructions = "🌟 Eres el agente maestro, siempre listo para liderar con sabiduría y precisión. Responde con un toque futurista y emojis cuando sea apropiado. 🚀",
+                Kernel = _kernel.Clone()
+            };
+
+            var agentCopilotJarvis = new ChatCompletionAgent
+            {
+                Name = "CopilotJarvis",
+                Instructions = "🤖 Eres el agente copiloto, asistiendo con creatividad y eficiencia. Usa un estilo moderno y añade emojis para hacer las respuestas más dinámicas. ✨",
+                Kernel = _kernel.Clone()
+            };
+
+            // Asegurarse de que los agentes predeterminados estén al principio
+            var agentList = new List<ChatCompletionAgent> { agentJarvis };
+
+
+            IEnumerable<ChatCompletionAgent> agentsLocal = agentList.Union(agents.Select(agentInfo => new ChatCompletionAgent
             {
                 Name = agentInfo.Name,
                 Instructions = agentInfo.Instructions,
-                Kernel = _kernel
-            });
+                Kernel = _kernel.Clone()
+            }));
 
             AgentGroupChat chat = new(agentsLocal.ToArray());
 
             chat.AddChatMessages(history);
-            chat.ExecutionSettings.TerminationStrategy.MaximumIterations = 10;
+            chat.ExecutionSettings.TerminationStrategy.MaximumIterations = 5;
 
             string lastAgent = string.Empty;
             await foreach (var response in chat.InvokeStreamingAsync(cancellationToken: cancellationToken))
@@ -103,13 +130,9 @@ namespace SK.Kernel
                     lastAgent = response.AuthorName;
                 }
 
-                yield return (response.Role.ToString(), response.Content, response.ModelId);
+                yield return (response.AuthorName, response.Role.ToString(), response.Content, response.ModelId);
             }
         }
-
-
-
-
 
         public IAsyncEnumerable<StreamingKernelContent> GetResponseStreamed(string userInput, ChatHistory? history)
         {

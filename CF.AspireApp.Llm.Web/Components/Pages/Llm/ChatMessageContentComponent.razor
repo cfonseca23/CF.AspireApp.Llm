@@ -6,60 +6,8 @@
 @using Microsoft.SemanticKernel.ChatCompletion
 @using System.Text.Json
 
+
 <div class="chat-message">
-    <strong>@Message.Role.ToString():</strong>
+    <strong>@Message.Role.ToString() - @AuthorName:</strong>
     @((MarkupString)AsMarkdown)
 </div>
-
-@code {
-    [Parameter]
-    public ChatMessageContent Message { get; set; } = default!;
-
-    private string AsMarkdown;
-    private MarkdownPipeline markdownPipeline;
-
-    protected override void OnInitialized()
-    {
-        base.OnInitialized();
-        markdownPipeline = new MarkdownPipelineBuilder()
-            .UsePipeTables()
-            .UseAdvancedExtensions()
-            // .UseColorCode(styleDictionary: StyleDictionary.DefaultDark)
-            .UseAutoLinks()
-            .UseEmojiAndSmiley()
-            .UseMediaLinks()
-            .UseCitations()
-            .Build();
-    }
-
-    protected override void OnParametersSet()
-    {
-        AsMarkdown = GetMarkdown(Message.Content);
-        StateHasChanged();
-    }
-
-    private string GetMarkdown(string content)
-    {
-        try
-        {
-            var html = Markdown.ToHtml(content, markdownPipeline);
-
-            var pattern = "(<div style=\"color:#DADADA;background-color:#1E1E1E;\"><pre>(.*?)</pre></div>)";
-            var matches = Regex.Matches(html, pattern, RegexOptions.Singleline | RegexOptions.Multiline | RegexOptions.IgnoreCase);
-
-            for (var i = matches.Count - 1; i >= 0; i--)
-            {
-                var match = matches[i].ToString();
-                var id = "copy" + i;
-                var replacement = $"<button data-clipboard-target=\"#{id}\" class=\"float-end copyBtn mt-0\">Copy</button>" + match;
-                html = html.Remove(matches[i].Index, matches[i].Length).Insert(matches[i].Index, replacement);
-            }
-
-            return html;
-        }
-        catch (Exception)
-        {
-            return "error markdowncontent.razor";
-        }
-    }
-}

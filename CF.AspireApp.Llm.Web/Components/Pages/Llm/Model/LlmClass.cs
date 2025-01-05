@@ -1,6 +1,7 @@
 ﻿namespace CF.AspireApp.Llm.Web.Components.Pages.Llm.Model;
 
 public record StreamingMessageAgent(
+    string authorName,
     string role,
     string content,
     string modelId

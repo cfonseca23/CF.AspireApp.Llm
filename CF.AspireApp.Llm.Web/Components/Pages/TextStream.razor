@@ -1,0 +1,98 @@
+﻿@page "/chat"
+@attribute [StreamRendering]
+@rendermode InteractiveServer
+@using System.Net.Http.Headers
+@using System.Text
+@using Microsoft.AspNetCore.Components
+@inject TextStreamApiClient TextStreamApiClient
+
+<PageTitle>Chat con LLM</PageTitle>
+
+<div>
+    <h1>Chat con LLM</h1>
+
+    <div style="height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 10px;">
+        @foreach (var message in messages)
+        {
+            <div>
+                <strong>@message.UserName:</strong> @((MarkupString)Markdig.Markdown.ToHtml(message.Message!)) <br />
+                <small>@message.CreatedDate.ToString("yyyy-MM-dd HH:mm:ss.fff")</small>
+            </div>
+        }
+    </div>
+
+    <EditForm Model="@this" OnValidSubmit="StartStream">
+        <InputText placeholder="Escribe tu mensaje aquí..." @bind-Value="userInput" required disabled="@isStreaming" />
+        <button type="submit" disabled="@IsSendButtonDisabled">Enviar</button>
+    </EditForm>
+
+    @if (isStreaming)
+    {
+        <div class="d-flex justify-content-center mt-3">
+            <div class="spinner-border text-primary" role="status">
+                <span class="sr-only">Procesando...</span>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private string userInput = string.Empty;
+    private List<ChatMessage> messages = new();
+    private bool isStreaming = false;
+    private CancellationTokenSource? cancellationTokenSource;
+    private bool IsSendButtonDisabled => string.IsNullOrWhiteSpace(userInput) || isStreaming;
+
+    private async Task StartStream()
+    {
+        messages.Clear();
+        isStreaming = true;
+        cancellationTokenSource = new CancellationTokenSource();
+
+        try
+        {
+            await TextStreamApiClient.StartTextStreamAsync(userInput, OnMessageReceivedAsync, cancellationTokenSource.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            messages.Add(new ChatMessage { UserName = "system", Message = "Stream canceled.", CreatedDate = DateTime.Now });
+        }
+        finally
+        {
+            isStreaming = false;
+        }
+
+        userInput = string.Empty;
+        StateHasChanged();
+    }
+
+    private void StopStream()
+    {
+        cancellationTokenSource?.Cancel();
+    }
+
+    private async Task OnMessageReceivedAsync(string message)
+    {
+        Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] Mensaje recibido: {message}");
+        await InvokeAsync(() =>
+        {
+            var lastMessage = messages.LastOrDefault();
+            if (lastMessage != null && lastMessage.UserName == "system")
+            {
+                lastMessage.Message += message;
+            }
+            else
+            {
+                messages.Add(new ChatMessage { UserName = "system", Message = message, CreatedDate = DateTime.Now });
+            }
+            StateHasChanged();
+        });
+    }
+
+    private class ChatMessage
+    {
+        public string UserName { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public DateTime CreatedDate { get; set; }
+    }
+}

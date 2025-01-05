@@ -2,7 +2,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.11.35327.3
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CF.AspireApp.Llm.AppHost", "CF.AspireApp.Llm.AppHost\CF.AspireApp.Llm.AppHost.csproj", "{72E1A0B3-2BA4-46D9-9AA0-054B4D1B85A7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CF.AspireApp.Llm.AppHost", "CF.AspireApp.Llm.AppHost\CF.AspireApp.Llm.AppHost.csproj", "{72E1A0B3-2BA4-46D9-9AA0-054B4D1B85A7}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CF.AspireApp.Llm.ServiceDefaults", "CF.AspireApp.Llm.ServiceDefaults\CF.AspireApp.Llm.ServiceDefaults.csproj", "{C7CE2076-2BD1-4839-BA30-AC60288BFEC3}"
 EndProject
@@ -11,6 +11,8 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CF.AspireApp.Llm.Web", "CF.AspireApp.Llm.Web\CF.AspireApp.Llm.Web.csproj", "{A99B3CD4-B2F7-430D-A0BE-AA93BE197B6A}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CF.AspireApp.Llm.Tests", "CF.AspireApp.Llm.Tests\CF.AspireApp.Llm.Tests.csproj", "{23AE0757-C264-4EB9-B2B0-5C1583D64FE1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SK.Kernel", "SK.Kernel\SK.Kernel.csproj", "{A78E55A2-0625-468B-BDFF-78A4B7D1B379}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -38,6 +40,10 @@ Global
 		{23AE0757-C264-4EB9-B2B0-5C1583D64FE1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{23AE0757-C264-4EB9-B2B0-5C1583D64FE1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{23AE0757-C264-4EB9-B2B0-5C1583D64FE1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A78E55A2-0625-468B-BDFF-78A4B7D1B379}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A78E55A2-0625-468B-BDFF-78A4B7D1B379}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A78E55A2-0625-468B-BDFF-78A4B7D1B379}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A78E55A2-0625-468B-BDFF-78A4B7D1B379}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

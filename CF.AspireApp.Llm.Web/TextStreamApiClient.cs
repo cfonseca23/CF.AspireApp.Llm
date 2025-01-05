@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Components.WebAssembly.Http;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.SemanticKernel.ChatCompletion;
+using CF.AspireApp.Llm.Web.Components.Pages.Llm.Model;
 
 namespace CF.AspireApp.Llm.Web
 {
@@ -127,13 +128,27 @@ namespace CF.AspireApp.Llm.Web
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Response stream obtained");
                 using var reader = new StreamReader(responseStream);
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Stream opened for reading");
+                
+                StringBuilder finalMessage = new StringBuilder(); // Crear un StringBuilder para almacenar el mensaje final
 
                 string? line;
                 while ((line = await reader.ReadLineAsync(cancellationToken)) != null)
                 {
-                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Line read: {line}");
-                    yield return line;
+                    if (line.StartsWith("data:"))
+                    {
+                        var jsonData = line.Substring(5).Trim(); // Quitar el prefijo "data:"
+                        var message = JsonSerializer.Deserialize<StreamingMessage>(jsonData);
+
+                        // Procesar el contenido estructurado
+                        if (message != null)
+                        {
+                            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Message Content: {message.content}");
+                            finalMessage.AppendLine(message.content); // Preserva saltos de línea
+                            yield return message.content;
+                        }
+                    }
                 }
+
 
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] End of stream");
             }
@@ -152,17 +167,15 @@ namespace CF.AspireApp.Llm.Web
             }
 
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] StartTextStreamWithHistoryAsync started");
+            StringBuilder finalMessage = new StringBuilder(); // Crear un StringBuilder para almacenar el mensaje final
 
             try
             {
                 await foreach (var line in GetLinesWithHistoryAsync(userInput, chatHistory, cancellationToken))
                 {
-                    if (!string.IsNullOrEmpty(line))
-                    {
-                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Processing line: {line}");
-                        await onMessageReceived(line);
-                    }
-
+                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Processing line: {line}");
+                    finalMessage.Append(line);
+                    await onMessageReceived(line);
                     await Task.Yield();
                 }
 

@@ -1,7 +1,6 @@
 using CF.AspireApp.Llm.ApiService.Model;
 
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.SemanticKernel.ChatCompletion;
 
 using SK.Kernel;
 
@@ -45,8 +44,8 @@ app.MapGet("/weatherforecast", () =>
 app.MapPost("/stream-text-chat-history", async (KernelService kernelService, [FromBody] UserInputChatHistoryRequest request, HttpContext context) =>
 {
     context.Response.ContentType = "text/event-stream";
-
     var cancellationToken = context.RequestAborted;
+
     var channel = Channel.CreateUnbounded<string>();
     var writer = channel.Writer;
 
@@ -54,36 +53,46 @@ app.MapPost("/stream-text-chat-history", async (KernelService kernelService, [Fr
     {
         try
         {
-            //var chatHistory = JsonSerializer.Deserialize<ChatHistory>(request.chatHistory); // Deserializar chatHistory
-            await foreach (var messageContent in kernelService.GetStreamingChatMessageContentsAsync(request.UserInput, request.chatHistory, cancellationToken: cancellationToken))
+            await foreach (var messageContent in kernelService.GetStreamingChatMessageContentsAsync(request.UserInput, request.ChatHistory, cancellationToken: cancellationToken))
             {
-                await writer.WriteAsync(messageContent.Content, cancellationToken);
+                // Construir el JSON estructurado para enviar al cliente
+                var structuredMessage = new
+                {
+                    content = messageContent.Content,
+                    obj_metadata = new
+                    {
+                        messageContent.ModelId,
+                        messageContent.ChoiceIndex,
+                        messageContent.Metadata
+                    }
+                };
+
+                var jsonMessage = JsonSerializer.Serialize(structuredMessage);
+                await writer.WriteAsync($"data: {jsonMessage}\n\n", cancellationToken);
             }
         }
         catch (Exception ex)
         {
-            // Log the error (assuming a logger is available)
+            Console.Error.WriteLine($"Error: {ex.Message}");
             writer.TryComplete(ex);
         }
         finally
         {
             writer.TryComplete();
         }
-    }, cancellationToken);
+    });
 
     await foreach (var message in channel.Reader.ReadAllAsync(cancellationToken))
     {
         if (cancellationToken.IsCancellationRequested)
-        {
-            break; // Finaliza si el cliente se desconecta
-        }
+            break;
 
-        var data = $"{message}\n\n";
-        var bytes = Encoding.UTF8.GetBytes(data);
+        var bytes = Encoding.UTF8.GetBytes(message);
         await context.Response.Body.WriteAsync(bytes, 0, bytes.Length, cancellationToken);
         await context.Response.Body.FlushAsync(cancellationToken);
     }
 });
+
 
 
 

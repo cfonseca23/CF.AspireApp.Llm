@@ -11,6 +11,6 @@ public class UserInputRequest
 public class UserInputChatHistoryRequest
 {
     public string UserInput { get; set; }
-    public ChatHistory chatHistory { get; set; }
+    public ChatHistory ChatHistory { get; set; }
 }
 

@@ -109,16 +109,6 @@ namespace SK.Kernel
             var hostInstructions =
                 @"You are a friendly assistant";
 
-            //KernelFunction[] functions = kerneltool.Plugins
-            //    .SelectMany(p => p).ToArray();
-            //FunctionChoiceBehavior functionOptions = FunctionChoiceBehavior.Required(functions, true);
-
-            //var settingsOllama = new OllamaPromptExecutionSettings()
-            //{
-            //    Temperature = 0,
-            //    FunctionChoiceBehavior = functionOptions
-            //};
-
             KernelPlugin DateTimePlugin = KernelPluginFactory.CreateFromType<DateTimePlugin>();
             kerneltool.Plugins.Add(DateTimePlugin);
 
@@ -136,9 +126,6 @@ namespace SK.Kernel
                            Arguments = new KernelArguments(settingsOllama),
                            LoggerFactory = _kernel.Services.GetRequiredService<ILoggerFactory>()
                        };
-            
-            //KernelPlugin DateTimePlugin = KernelPluginFactory.CreateFromType<DateTimePlugin>();
-            //agent.Kernel.Plugins.Add(DateTimePlugin);
 
             AgentGroupChat chat = new();
             chat.AddChatMessages(history.Where(e => !e.Role.ToString().ToUpper().Equals(AuthorRole.System.ToString().ToUpper())).ToList());

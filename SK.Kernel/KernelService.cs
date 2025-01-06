@@ -1,19 +1,27 @@
-﻿using Microsoft.SemanticKernel.ChatCompletion;
+﻿using System.Text.Json;
+using System.Runtime.CompilerServices;
+
+using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Memory;
 using Microsoft.SemanticKernel.Plugins.Memory;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Agents;
-using System.Text.Json;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using SK.Kernel;
-using System.Runtime.CompilerServices;
-using Microsoft.SemanticKernel.Connectors.OpenAI;
+//using Microsoft.SemanticKernel.Connectors.OpenAI;
+
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.SemanticKernel.Embeddings;
+using HtmlAgilityPack;
+
 using SK.Kernel.Plugins;
+using Microsoft.SemanticKernel.Connectors.Ollama;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
+using Microsoft.Extensions.Logging;
 
 #pragma warning disable SKEXP0001
 #pragma warning disable SKEXP0110
 #pragma warning disable SKEXP0050
+#pragma warning disable SKEXP0070 // Este tipo se incluye solo con fines de evaluación y está sujeto a cambios o a que se elimine en próximas actualizaciones. Suprima este diagnóstico para continuar.
+
 
 namespace SK.Kernel
 {
@@ -21,11 +29,14 @@ namespace SK.Kernel
     {
         private readonly Microsoft.SemanticKernel.Kernel _kernel;
         private readonly KernelFunction _function;
+        private readonly LocalServerClientHandler _localServerClientHandler;
 
-        public KernelService(Microsoft.SemanticKernel.Kernel kernel)
+
+        public KernelService(Microsoft.SemanticKernel.Kernel kernel, LocalServerClientHandler localServerClientHandler)
         {
             _kernel = kernel;
             _function = _kernel.CreateFunctionFromPrompt(Constants.Prompt);
+            _localServerClientHandler = localServerClientHandler;
         }
 
         public async Task<string> GetChatCompletionResponseAsync(string? userInput, string? history)
@@ -62,7 +73,11 @@ namespace SK.Kernel
             return responseChat;
         }
 
-        public async IAsyncEnumerable<StreamingChatMessageContent> GetStreamingChatMessageContentsAsync(string userInput, ChatHistory? history, PromptExecutionSettings? executionSettings = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        public async IAsyncEnumerable<StreamingChatMessageContent>
+            GetStreamingChatMessageContentsAsync(string userInput,
+                                                 ChatHistory? history,
+                                                 PromptExecutionSettings? executionSettings = null,
+                                                 [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             history ??= new ChatHistory();
             if (!string.IsNullOrWhiteSpace(userInput))
@@ -77,7 +92,11 @@ namespace SK.Kernel
             }
         }
 
-        public async IAsyncEnumerable<(string AuthorName, string Role, string Content, string ModelId, DateTime Timestamp)> GetDetailedStreamingChatMessageToolContentsAsync(string userInput, ChatHistory? history, PromptExecutionSettings? executionSettings = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        public async IAsyncEnumerable<(string AuthorName, string Role, string Content, string ModelId, DateTime Timestamp)>
+    GetDetailedStreamingChatMessageToolContentsAsync(string userInput,
+                                                     ChatHistory? history,
+                                                     PromptExecutionSettings? executionSettings = null,
+                                                     [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             history ??= new ChatHistory();
             if (!string.IsNullOrWhiteSpace(userInput))
@@ -85,23 +104,60 @@ namespace SK.Kernel
                 history.AddUserMessage(userInput);
             }
             var kerneltool = _kernel.Clone();
-            kerneltool.ImportPluginFromType<TimePlugin>();
 
-            executionSettings = executionSettings ?? new PromptExecutionSettings() {
+            var hostName = "AI Assistant";
+            var hostInstructions =
+                @"You are a friendly assistant";
+
+            //KernelFunction[] functions = kerneltool.Plugins
+            //    .SelectMany(p => p).ToArray();
+            //FunctionChoiceBehavior functionOptions = FunctionChoiceBehavior.Required(functions, true);
+
+            //var settingsOllama = new OllamaPromptExecutionSettings()
+            //{
+            //    Temperature = 0,
+            //    FunctionChoiceBehavior = functionOptions
+            //};
+
+            KernelPlugin DateTimePlugin = KernelPluginFactory.CreateFromType<DateTimePlugin>();
+            kerneltool.Plugins.Add(DateTimePlugin);
+
+            var settingsOllama = new OllamaPromptExecutionSettings()
+            {
                 FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
-                //ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions
             };
 
-            var currentDay = await kerneltool.InvokeAsync("TimePlugin", "DayOfWeek");
-            var chatCompletionService = kerneltool.GetRequiredService<IChatCompletionService>();
-            await foreach (var messageContent in chatCompletionService.GetStreamingChatMessageContentsAsync(history, executionSettings, kerneltool, cancellationToken))
+            ChatCompletionAgent agent =
+                       new()
+                       {
+                           Instructions = hostInstructions,
+                           Name = hostName,
+                           Kernel = kerneltool,
+                           Arguments = new KernelArguments(settingsOllama),
+                           LoggerFactory = _kernel.Services.GetRequiredService<ILoggerFactory>()
+                       };
+            
+            //KernelPlugin DateTimePlugin = KernelPluginFactory.CreateFromType<DateTimePlugin>();
+            //agent.Kernel.Plugins.Add(DateTimePlugin);
+
+            AgentGroupChat chat = new();
+            chat.AddChatMessages(history.Where(e => !e.Role.ToString().ToUpper().Equals(AuthorRole.System.ToString().ToUpper())).ToList());
+
+            string dateWithTime = await kerneltool.InvokeAsync<string>("DateTimePlugin", "DateWithTime", cancellationToken: cancellationToken);
+            Console.WriteLine("dateWithTime: " + dateWithTime);
+
+            await foreach (StreamingChatMessageContent messageContent in chat.InvokeStreamingAsync(agent, cancellationToken: cancellationToken))
             {
                 yield return (messageContent.AuthorName, messageContent.Role.ToString(), messageContent.Content, messageContent.ModelId, DateTime.UtcNow);
             }
         }
 
-
-        public async IAsyncEnumerable<(string AuthorName, string Role, string Content, string ModelId)> GetStreamingAgentChatMessageContentsAsync(string userInput, ChatHistory? history, IEnumerable<ChatCompletionAgent> agents, PromptExecutionSettings? executionSettings = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        public async IAsyncEnumerable<(string AuthorName, string Role, string Content, string ModelId)> 
+            GetStreamingAgentChatMessageContentsAsync(string userInput,
+                                                      ChatHistory? history,
+                                                      IEnumerable<ChatCompletionAgent> agents,
+                                                      PromptExecutionSettings? executionSettings = null,
+                                                      [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             history ??= new ChatHistory();
             if (!string.IsNullOrWhiteSpace(userInput))
@@ -110,10 +166,9 @@ namespace SK.Kernel
             }
 
             var kernelJarvis = _kernel.Clone();
-            var settings = new OpenAIPromptExecutionSettings
+            var settings = new OllamaPromptExecutionSettings
             {
-                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(),
-                Temperature = 0.0
+                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
             };
 
 
@@ -156,6 +211,45 @@ namespace SK.Kernel
                 }
 
                 yield return (response.AuthorName, response.Role.ToString(), response.Content, response.ModelId);
+            }
+        }
+
+        public async IAsyncEnumerable<string> ProcessArticlesAndAnswerQuestionsAsync(IEnumerable<string> articleUrls,
+                                                                                     string userInput)
+        {
+            var embeddingGenerator = _kernel.Services.GetRequiredService<ITextEmbeddingGenerationService>();
+            var memory = new SemanticTextMemory(new VolatileMemoryStore(), embeddingGenerator);
+
+            const string collectionName = "ghc-news";
+            var web = new HtmlWeb();
+
+            foreach (var article in articleUrls)
+            {
+                var htmlDoc = web.Load(article);
+                var node = htmlDoc.DocumentNode.Descendants(0).FirstOrDefault(n => n.HasClass("attributed-text-segment-list__content"));
+                if (node != null)
+                {
+                    await memory.SaveInformationAsync(collectionName, node.InnerText, Guid.NewGuid().ToString());
+                }
+            }
+
+            _kernel.ImportPluginFromObject(new TextMemoryPlugin(memory), "memory");
+
+            var prompt = @"
+    Question: {{$input}}
+    Answer the question using the memory content: {{Recall}}
+    If you don't know an answer, say 'I don't know!'";
+
+            var arguments = new KernelArguments
+    {
+        { "input", userInput },
+        { "collection", collectionName }
+    };
+
+            var response = _kernel.InvokePromptStreamingAsync(prompt, arguments);
+            await foreach (var res in response)
+            {
+                yield return res.ToString();
             }
         }
 

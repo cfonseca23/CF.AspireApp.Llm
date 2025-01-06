@@ -115,7 +115,11 @@ app.MapPost("/stream-agent-chat-history", async (KernelService kernelService, [F
             }).ToList();
 #pragma warning restore SKEXP0110
 
-            await foreach (var (authorName, role, content, modelId) in kernelService.GetStreamingAgentChatMessageContentsAsync(request.UserInput, request.ChatHistory, agents, cancellationToken: cancellationToken))
+            await foreach (var (authorName, role, content, modelId) in kernelService.GetStreamingAgentChatMessageContentsAsync(
+                request.UserInput,
+                request.ChatHistory,
+                agents,
+                cancellationToken: cancellationToken))
             {
                 var structuredMessage = new
                 {

@@ -1,21 +1,13 @@
-﻿#pragma warning disable SKEXP0001
-#pragma warning disable SKEXP0020
-#pragma warning disable SKEXP0050
-#pragma warning disable SKEXP0070
-
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.Connectors.Qdrant;
-using Microsoft.SemanticKernel.Memory;
-using Microsoft.SemanticKernel.Plugins.Memory;
-
-using SK.Kernel;
-
 
 namespace SK.Kernel;
+
+#pragma warning disable SKEXP0070 
+
 
 public static class KernelExtensions
 {
@@ -23,32 +15,46 @@ public static class KernelExtensions
     {
         builder.Services.AddOptions<KernelOptions>()
             .BindConfiguration(nameof(KernelOptions))
-            //.ValidateDataAnnotations()
             .ValidateOnStart();
 
         var options = builder.Configuration.GetSection(nameof(KernelOptions)).Get<KernelOptions>()!;
 
         var kernelBuilder = Microsoft.SemanticKernel.Kernel.CreateBuilder();
         kernelBuilder.Services.AddLogging(c => c.AddConsole().SetMinimumLevel(LogLevel.Information));
-        //kernelBuilder.Services.ConfigureHttpClientDefaults(c =>
-        //{
-        //    c.AddStandardResilienceHandler(x =>
-        //    {
-        //        x.CircuitBreaker = new HttpCircuitBreakerStrategyOptions()
-        //        {
-        //            SamplingDuration = TimeSpan.FromMinutes(4),
-        //        };
-        //        x.AttemptTimeout = new HttpTimeoutStrategyOptions() { Timeout = TimeSpan.FromMinutes(2) };
-        //        x.TotalRequestTimeout = new HttpTimeoutStrategyOptions() { Timeout = TimeSpan.FromMinutes(5) };
-        //    });
-        //});
 
         string ollamaEndpoint = builder.Configuration.GetConnectionString(Constants.OllamaConnectionString)!;
         var baseHost = new Uri(ollamaEndpoint).GetLeftPart(UriPartial.Authority);
 
+        // Registrar LocalServerClientHandler
+        builder.Services.AddTransient<LocalServerClientHandler>(sp =>
+        {
+            var logger = sp.GetRequiredService<ILogger<LocalServerClientHandler>>();
+            return new LocalServerClientHandler(baseHost, logger);
+        });
+
+        // Configurar HttpClient utilizando LocalServerClientHandler
+        builder.Services.AddHttpClient("OllamaClient")
+            .ConfigurePrimaryHttpMessageHandler<LocalServerClientHandler>()
+            .ConfigureHttpClient(client =>
+            {
+                client.BaseAddress = new Uri(baseHost);
+            });
+
+        var serviceProvider = builder.Services.BuildServiceProvider();
+        var client = serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient("OllamaClient");
+
         kernelBuilder
-            .AddOllamaChatCompletion(options.ChatModelId, new Uri(baseHost))
+            //.AddAzureOpenAIChatCompletion(options.ChatModelId, baseHost, "apikey", httpClient: client)
+            .AddOllamaChatCompletion(options.ChatModelId, httpClient: client)
             .AddOllamaTextEmbeddingGeneration(options.TextEmbeddingModelId, new Uri(baseHost));
+
+        kernelBuilder.AddLocalTextEmbeddingGeneration();
+
+
+        builder.Services.AddTransient((serviceProvider) =>
+        {
+            return new Microsoft.SemanticKernel.Kernel(serviceProvider);
+        });
 
         string[] qdrantEndpoint = builder.Configuration.GetConnectionString(Constants.QdrantHttpConnectionString)!.Split(";");
         string qdrantUrl = qdrantEndpoint[0]["Endpoint=".Length..];
@@ -60,17 +66,7 @@ public static class KernelExtensions
             DefaultRequestHeaders = { { "api-key", qdrantApiKey } }
         };
 
-        //var memory = new MemoryBuilder()
-        //    .WithMemoryStore(new QdrantMemoryStore(qdrantClient, options.TextEmbeddingVectorSize))
-        //    .WithOllamaTextEmbeddingGeneration(options.TextEmbeddingModelId, ollamaEndpoint)
-        //    .WithHttpClient(qdrantClient)
-        //    .Build();
-
-        //kernelBuilder.Services.AddSingleton(memory);
-
         var kernel = kernelBuilder.Build();
-        //kernel.ImportPluginFromObject(new TextMemoryPlugin(memory));
-
         builder.Services.AddSingleton(kernel);
         builder.Services.AddSingleton<KernelService>();
     }

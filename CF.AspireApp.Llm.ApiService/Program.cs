@@ -43,6 +43,49 @@ app.MapGet("/weatherforecast", () =>
 });
 
 
+app.MapPost("/processRAG", async (KernelService kernelService, [FromBody] ProcessArticlesRequest request, HttpContext context) =>
+{
+    context.Response.ContentType = "text/event-stream";
+
+    using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted, cts.Token);
+    var cancellationToken = linkedCts.Token;
+
+    var channel = Channel.CreateUnbounded<string>();
+    var writer = channel.Writer;
+
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+            await foreach (var response in kernelService.ProcessRAGAsync(request.articles, request.userInput))
+            {
+                var jsonMessage = JsonSerializer.Serialize(new { response });
+                await writer.WriteAsync($"data: {jsonMessage}\n\n", cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error: {ex.Message}");
+            writer.TryComplete(ex);
+        }
+        finally
+        {
+            writer.TryComplete();
+        }
+    });
+
+    await foreach (var message in channel.Reader.ReadAllAsync(cancellationToken))
+    {
+        if (cancellationToken.IsCancellationRequested)
+            break;
+
+        var bytes = Encoding.UTF8.GetBytes(message);
+        await context.Response.Body.WriteAsync(bytes, 0, bytes.Length, cancellationToken);
+        await context.Response.Body.FlushAsync(cancellationToken);
+    }
+});
+
 app.MapPost("/stream-agent-chat-history-tool", async (KernelService kernelService, [FromBody] UserInputAgentChatHistoryRequest request, HttpContext context) =>
 {
     context.Response.ContentType = "text/event-stream";

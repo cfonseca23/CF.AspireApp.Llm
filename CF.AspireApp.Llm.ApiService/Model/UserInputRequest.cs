@@ -1,5 +1,7 @@
 ﻿using Microsoft.SemanticKernel.ChatCompletion;
 
+using SK.Kernel.Memory;
+
 namespace CF.AspireApp.Llm.ApiService.Model;
 
 public class UserInputRequest
@@ -21,6 +23,13 @@ public class UserInputAgentChatHistoryRequest
     public ChatHistory? ChatHistory { get; set; }
     public List<AgentInfo> Agents { get; set; }
 }
+
+public class ProcessArticlesRequest
+{
+    public List<DicDataRag> articles { get; set; }
+    public string userInput { get; set; }
+}
+
 
 public class AgentInfo
 {

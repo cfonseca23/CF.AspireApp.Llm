@@ -16,6 +16,14 @@ using SK.Kernel.Plugins;
 using Microsoft.SemanticKernel.Connectors.Ollama;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Microsoft.Extensions.Logging;
+using SK.Kernel.Memory;
+using Google.Protobuf.Collections;
+using Microsoft.SemanticKernel.Text;
+using SK.Kernel.ModelsRAG;
+using Microsoft.SemanticKernel.Connectors.InMemory;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.VectorData;
+using System.Text;
 
 #pragma warning disable SKEXP0001
 #pragma warning disable SKEXP0110
@@ -53,7 +61,7 @@ namespace SK.Kernel
             {
                 Name = "AsistenteIAAgent",
                 Instructions = "Eres un chat asistente",
-                Kernel = _kernel
+                Kernel = _kernel.Clone()
             };
 
             ChatHistory chat = chatHistory ?? new ChatHistory();
@@ -73,11 +81,13 @@ namespace SK.Kernel
             return responseChat;
         }
 
+        #region Chat with and without history
+
         public async IAsyncEnumerable<StreamingChatMessageContent>
-            GetStreamingChatMessageContentsAsync(string userInput,
-                                                 ChatHistory? history,
-                                                 PromptExecutionSettings? executionSettings = null,
-                                                 [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    GetStreamingChatMessageContentsAsync(string userInput,
+                                         ChatHistory? history,
+                                         PromptExecutionSettings? executionSettings = null,
+                                         [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             history ??= new ChatHistory();
             if (!string.IsNullOrWhiteSpace(userInput))
@@ -85,18 +95,22 @@ namespace SK.Kernel
                 history.AddUserMessage(userInput);
             }
 
-            var chatCompletionService = _kernel.GetRequiredService<IChatCompletionService>();
-            await foreach (var messageContent in chatCompletionService.GetStreamingChatMessageContentsAsync(history, executionSettings, _kernel, cancellationToken))
+            var kernelSimple = _kernel.Clone();
+            var chatCompletionService = kernelSimple.GetRequiredService<IChatCompletionService>();
+            await foreach (var messageContent in chatCompletionService.GetStreamingChatMessageContentsAsync(history, executionSettings, kernelSimple, cancellationToken))
             {
                 yield return messageContent;
             }
         }
 
+        #endregion
+
+        #region tool
         public async IAsyncEnumerable<(string AuthorName, string Role, string Content, string ModelId, DateTime Timestamp)>
-    GetDetailedStreamingChatMessageToolContentsAsync(string userInput,
-                                                     ChatHistory? history,
-                                                     PromptExecutionSettings? executionSettings = null,
-                                                     [EnumeratorCancellation] CancellationToken cancellationToken = default)
+GetDetailedStreamingChatMessageToolContentsAsync(string userInput,
+                                             ChatHistory? history,
+                                             PromptExecutionSettings? executionSettings = null,
+                                             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             history ??= new ChatHistory();
             if (!string.IsNullOrWhiteSpace(userInput))
@@ -124,7 +138,7 @@ namespace SK.Kernel
                            Name = hostName,
                            Kernel = kerneltool,
                            Arguments = new KernelArguments(settingsOllama),
-                           LoggerFactory = _kernel.Services.GetRequiredService<ILoggerFactory>()
+                           LoggerFactory = kerneltool.Services.GetRequiredService<ILoggerFactory>()
                        };
 
             AgentGroupChat chat = new();
@@ -138,13 +152,16 @@ namespace SK.Kernel
                 yield return (messageContent.AuthorName, messageContent.Role.ToString(), messageContent.Content, messageContent.ModelId, DateTime.UtcNow);
             }
         }
+        #endregion
 
-        public async IAsyncEnumerable<(string AuthorName, string Role, string Content, string ModelId)> 
-            GetStreamingAgentChatMessageContentsAsync(string userInput,
-                                                      ChatHistory? history,
-                                                      IEnumerable<ChatCompletionAgent> agents,
-                                                      PromptExecutionSettings? executionSettings = null,
-                                                      [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        #region agent
+
+        public async IAsyncEnumerable<(string AuthorName, string Role, string Content, string ModelId)>
+    GetStreamingAgentChatMessageContentsAsync(string userInput,
+                                              ChatHistory? history,
+                                              IEnumerable<ChatCompletionAgent> agents,
+                                              PromptExecutionSettings? executionSettings = null,
+                                              [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             history ??= new ChatHistory();
             if (!string.IsNullOrWhiteSpace(userInput))
@@ -201,61 +218,102 @@ namespace SK.Kernel
             }
         }
 
-        public async IAsyncEnumerable<string> ProcessArticlesAndAnswerQuestionsAsync(IEnumerable<string> articleUrls,
-                                                                                     string userInput)
+        #endregion
+
+        public async IAsyncEnumerable<string> ProcessRAGAsync(List<DicDataRag> articles, string userInput)
         {
-            var embeddingGenerator = _kernel.Services.GetRequiredService<ITextEmbeddingGenerationService>();
-            var memory = new SemanticTextMemory(new VolatileMemoryStore(), embeddingGenerator);
+            var kernelRag = _kernel.Clone();
 
-            const string collectionName = "ghc-news";
-            var web = new HtmlWeb();
-
-            foreach (var article in articleUrls)
-            {
-                var htmlDoc = web.Load(article);
-                var node = htmlDoc.DocumentNode.Descendants(0).FirstOrDefault(n => n.HasClass("attributed-text-segment-list__content"));
-                if (node != null)
-                {
-                    await memory.SaveInformationAsync(collectionName, node.InnerText, Guid.NewGuid().ToString());
-                }
-            }
-
-            _kernel.ImportPluginFromObject(new TextMemoryPlugin(memory), "memory");
-
-            var prompt = @"
-    Question: {{$input}}
-    Answer the question using the memory content: {{Recall}}
-    If you don't know an answer, say 'I don't know!'";
-
-            var arguments = new KernelArguments
+            var movieData = new List<Movie>()
     {
-        { "input", userInput },
-        { "collection", collectionName }
+        new Movie
+        {
+            Key=0,
+            Title="Lion King",
+            Description="The Lion King is a classic Disney animated film that tells the story of a young lion named Simba who embarks on a journey to reclaim his throne as the king of the Pride Lands after the tragic death of his father."
+        },
+        new Movie
+        {
+            Key=1,
+            Title="Inception",
+            Description="Inception is a science fiction film directed by Christopher Nolan that follows a group of thieves who enter the dreams of their targets to steal information."
+        },
+        new Movie
+        {
+            Key=2,
+            Title="The Matrix",
+            Description="The Matrix is a science fiction film directed by the Wachowskis that follows a computer hacker named Neo who discovers that the world he lives in is a simulated reality created by machines."
+        },
+        new Movie
+        {
+            Key=3,
+            Title="Shrek",
+            Description="Shrek is an animated film that tells the story of an ogre named Shrek who embarks on a quest to rescue Princess Fiona from a dragon and bring her back to the kingdom of Duloc."
+        }
     };
 
-            var response = _kernel.InvokePromptStreamingAsync(prompt, arguments);
-            await foreach (var res in response)
+            var vectorStore = new InMemoryVectorStore();
+            var movies = vectorStore.GetCollection<int, Movie>("movies");
+            await movies.CreateCollectionIfNotExistsAsync();
+
+            IEmbeddingGenerator<string, Embedding<float>> generator =
+                new Microsoft.Extensions.AI.OllamaEmbeddingGenerator(new Uri("http://localhost:11434/"), "all-minilm");
+
+            foreach (var movie in movieData)
+            {
+                movie.Vector = await generator.GenerateEmbeddingVectorAsync(movie.Description);
+                await movies.UpsertAsync(movie);
+            }
+
+            var queryEmbedding = await generator.GenerateEmbeddingVectorAsync(userInput);
+            var searchOptions = new VectorSearchOptions()
+            {
+                Top = 1,
+                VectorPropertyName = "Vector"
+            };
+
+            var results = await movies.VectorizedSearchAsync(queryEmbedding, searchOptions);
+
+            var context = new StringBuilder();
+            await foreach (var result in results.Results)
+            {
+                context.AppendLine($"Title: {result.Record.Title}");
+                context.AppendLine($"Description: {result.Record.Description}");
+                context.AppendLine($"Score: {result.Score}");
+                context.AppendLine();
+            }
+            Console.WriteLine(context.ToString());
+            Console.WriteLine(context.ToString());
+            var promptChunked = @"You are a helpful assistant that generates search queries "
+                + "based on a single input query. "
+                + "Perform query decomposition and break it down into distinct sub questions that you need to "
+                + "answer in order to answer the original question "
+                + "If there are acronyms and words you are not familiar with, do not try to rephrase them. "
+                + "Return sub questions in CSV content. {{$context}}";
+
+            const string MemoryCollectionNameChunked = "originalPrompt";
+
+            OpenAIPromptExecutionSettings settings = new()
+            {
+                MaxTokens = 100,
+                ToolCallBehavior = null,
+                Temperature = 0,
+                TopP = 0
+            };
+
+            var arguments = new KernelArguments(settings)
+    {
+        { "input", userInput },
+        { "collection", MemoryCollectionNameChunked },
+        { "context", context.ToString() }
+    };
+
+            await foreach (StreamingKernelContent res in kernelRag.InvokePromptStreamingAsync(promptChunked, arguments))
             {
                 yield return res.ToString();
             }
         }
 
-        public IAsyncEnumerable<StreamingKernelContent> GetResponseStreamed(string userInput, ChatHistory? history)
-        {
-            history ??= new ChatHistory();
-            string historyAsString = string.Join(Environment.NewLine + Environment.NewLine, history);
-
-            var arguments = new KernelArguments
-            {
-                ["history"] = historyAsString,
-                ["userInput"] = userInput,
-                [TextMemoryPlugin.CollectionParam] = Constants.MemoryCollectionName,
-                [TextMemoryPlugin.LimitParam] = "3",
-                [TextMemoryPlugin.RelevanceParam] = "0.70"
-            };
-
-            return _function.InvokeStreamingAsync(_kernel, arguments);
-        }
 
         public async Task<string?> CreateTextEmbeddingAsync(string text)
         {

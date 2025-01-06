@@ -45,8 +45,8 @@ public static class KernelExtensions
 
         kernelBuilder
             //.AddAzureOpenAIChatCompletion(options.ChatModelId, baseHost, "apikey", httpClient: client)
-            .AddOllamaChatCompletion(options.ChatModelId, httpClient: client)
-            .AddOllamaTextEmbeddingGeneration(options.TextEmbeddingModelId, new Uri(baseHost));
+            .AddOllamaChatCompletion(options.ChatModelId, httpClient: client);
+            //.AddOllamaTextEmbeddingGeneration(options.TextEmbeddingModelId, new Uri(baseHost));
 
         kernelBuilder.AddLocalTextEmbeddingGeneration();
 

@@ -16,6 +16,9 @@ public record StreamingMessageTool(
     string modelId,
     string time
 );
+public record StreamingMessageRAG(
+    string response
+);
 
 
 public record StreamingMessage(string content, Metadata obj_metadata);

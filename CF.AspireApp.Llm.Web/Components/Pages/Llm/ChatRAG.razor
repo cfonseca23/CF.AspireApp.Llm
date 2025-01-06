@@ -1,0 +1,205 @@
+﻿@page "/chatRAG"
+@attribute [StreamRendering]
+@rendermode InteractiveServer
+@using System.Net.Http.Headers
+@using System.Text
+@using Microsoft.AspNetCore.Components
+@using Microsoft.SemanticKernel
+@using Microsoft.SemanticKernel.ChatCompletion
+@using CF.AspireApp.Llm.Web.Components.Pages.Llm.Model;
+@using System.Text.Json
+
+@inject TextStreamApiClient TextStreamApiClient
+
+<PageTitle>Chat con Artículos</PageTitle>
+
+<div>
+    <h1>Chat con Artículos</h1>
+
+    <div style="height: 800px; overflow-y: auto; border: 1px solid #ccc; padding: 10px;">
+        @foreach (var message in messages)
+        {
+            <div class="@(message.Role == AuthorRole.User ? "user-message" : "assistant-message")">
+                <ChatMessageContentComponent Message="@message" />
+            </div>
+        }
+    </div>
+
+    <MessageInputComponent OnMessageSubmit="StartStream" IsStreaming="@isStreaming" />
+
+    <LoadingSpinnerComponent IsVisible="@isStreaming" />
+
+    <div>
+        <h2>Artículos</h2>
+        <ul>
+            @foreach (var article in articles)
+            {
+                <li>
+                    <strong>@article.Id:</strong> @article.Text
+                    <button @onclick="() => EditArticle(article)">Editar</button>
+                    <button @onclick="() => DeleteArticle(article)">Eliminar</button>
+                </li>
+            }
+        </ul>
+        <button @onclick="AddArticle">Agregar Artículo</button>
+    </div>
+
+    @if (isEditingArticle)
+    {
+        <div>
+            <h3>@(editingArticleIndex >= 0 ? "Editar Artículo" : "Agregar Artículo")</h3>
+            <label>ID:</label>
+            <input @bind="editingArticle.Id" />
+            <label>Texto:</label>
+            <textarea @bind="editingArticle.Text"></textarea>
+            <button @onclick="SaveArticle">Guardar</button>
+            <button @onclick="CancelEdit">Cancelar</button>
+        </div>
+    }
+</div>
+
+<style>
+    .user-message {
+        background-color: #e0f7fa;
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 10px;
+    }
+
+    .assistant-message {
+        background-color: #f1f8e9;
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 10px;
+    }
+</style>
+
+@code {
+    private ChatHistory messages = new();
+    private bool isStreaming = false;
+    private CancellationTokenSource? cancellationTokenSource;
+    private StringBuilder finalMessage = new StringBuilder(); // Variable para almacenar el mensaje final
+    private List<(string Id, string Text)> articles = new();
+    private bool isEditingArticle = false;
+    private (string Id, string Text) editingArticle = ("", "");
+    private int editingArticleIndex = -1;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        AddInitialMessage();
+        AddInitialArticles();
+    }
+
+    private void AddInitialMessage()
+    {
+        // var initialMessage = "Bienvenido al chat con Artículos. ¿En qué puedo ayudarte hoy?";
+        // messages.AddAssistantMessage(initialMessage);
+    }
+
+    private void AddInitialArticles()
+    {
+        articles.Add(("1", "Artículo sobre tecnología. Este artículo explora las últimas tendencias en inteligencia artificial y su impacto en diversas industrias, incluyendo ejemplos de empresas que están liderando la innovación."));
+        articles.Add(("2", "Artículo sobre marketing. Este artículo analiza las estrategias de marketing digital más efectivas para el año 2023, destacando casos de estudio de campañas exitosas."));
+        articles.Add(("3", "Artículo sobre finanzas. Este artículo ofrece una visión profunda sobre la gestión de inversiones y las mejores prácticas para el ahorro, con consejos de expertos financieros."));
+        articles.Add(("4", "Artículo sobre salud. Este artículo discute la importancia de la salud mental y ofrece consejos prácticos para mantener un equilibrio emocional, incluyendo técnicas de mindfulness y meditación."));
+        articles.Add(("5", "Artículo sobre educación. Este artículo examina las nuevas metodologías de enseñanza y cómo la tecnología está transformando el aprendizaje, con ejemplos de herramientas educativas innovadoras."));
+        articles.Add(("6", "Artículo sobre medio ambiente. Este artículo aborda los desafíos del cambio climático y las iniciativas sostenibles que se están implementando a nivel global, con un enfoque en energías renovables."));
+        articles.Add(("7", "Artículo sobre deportes. Este artículo cubre los últimos avances en tecnología deportiva y cómo están mejorando el rendimiento de los atletas, con entrevistas a deportistas de élite."));
+        articles.Add(("8", "Artículo sobre entretenimiento. Este artículo analiza las tendencias actuales en la industria del entretenimiento, incluyendo el auge de las plataformas de streaming y su impacto en el cine y la televisión."));
+        articles.Add(("9", "Artículo sobre viajes. Este artículo ofrece guías de viaje para destinos exóticos, con recomendaciones de actividades y lugares para visitar, basadas en experiencias de viajeros frecuentes."));
+        articles.Add(("10", "Artículo sobre gastronomía. Este artículo explora la evolución de la cocina moderna, destacando chefs innovadores y recetas que están marcando tendencia en el mundo culinario."));
+    }
+
+
+    private async Task StartStream(string userInput)
+    {
+        isStreaming = true;
+        cancellationTokenSource = new CancellationTokenSource();
+        finalMessage.Clear(); // Limpiar el mensaje final
+        messages.Clear(); // Reiniciar el historial de mensajes
+
+        try
+        {
+            messages.AddUserMessage(userInput);
+
+            await TextStreamApiClient.StartTextStreamFromArticlesAsync(articles, userInput, OnMessageReceivedAsync, cancellationTokenSource.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            messages.AddSystemMessage("Stream canceled.");
+        }
+        finally
+        {
+            isStreaming = false;
+        }
+
+        StateHasChanged();
+    }
+
+    private void StopStream()
+    {
+        cancellationTokenSource?.Cancel();
+    }
+
+#pragma warning disable SKEXP0001
+    private async Task OnMessageReceivedAsync(string message)
+    {
+        Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] Mensaje recibido: {message}");
+        await InvokeAsync(() =>
+        {
+            var lastMessage = messages.LastOrDefault();
+            if (lastMessage != null && lastMessage.Role == AuthorRole.Assistant)
+            {
+                lastMessage.Content += message;
+            }
+            else
+            {
+                messages.AddAssistantMessage(message);
+            }
+
+            // Actualizar el mensaje final
+            finalMessage.Append(message);
+
+            StateHasChanged();
+        });
+    }
+#pragma warning restore SKEXP0001
+
+    private void AddArticle()
+    {
+        editingArticle = ("", "");
+        editingArticleIndex = -1;
+        isEditingArticle = true;
+    }
+
+    private void EditArticle((string Id, string Text) article)
+    {
+        editingArticle = article;
+        editingArticleIndex = articles.IndexOf(article);
+        isEditingArticle = true;
+    }
+
+    private void SaveArticle()
+    {
+        if (editingArticleIndex >= 0)
+        {
+            articles[editingArticleIndex] = editingArticle;
+        }
+        else
+        {
+            articles.Add(editingArticle);
+        }
+        isEditingArticle = false;
+    }
+
+    private void CancelEdit()
+    {
+        isEditingArticle = false;
+    }
+
+    private void DeleteArticle((string Id, string Text) article)
+    {
+        articles.Remove(article);
+    }
+}

@@ -282,13 +282,11 @@ GetDetailedStreamingChatMessageToolContentsAsync(string userInput,
                 context.AppendLine();
             }
             Console.WriteLine(context.ToString());
-            Console.WriteLine(context.ToString());
             var promptChunked = @"Eres un asistente útil que genera consultas de búsqueda "
                 + "basadas en una sola consulta de entrada. "
-                + "Descompone la consulta en subpreguntas distintas que necesitas "
                 + "responder para contestar la pregunta original. "
                 + "Si hay acrónimos y palabras que no conoces, no intentes reformularlas. "
-                + "Devuelve las subpreguntas. {{$context}}";
+                + "Peliculas: {{$context}}";
 
 
             const string MemoryCollectionNameChunked = "originalPrompt";
@@ -312,6 +310,8 @@ GetDetailedStreamingChatMessageToolContentsAsync(string userInput,
             {
                 yield return res.ToString();
             }
+            yield return Environment.NewLine + "\nContexto:\n";
+            yield return context.ToString();
         }
 
 

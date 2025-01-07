@@ -1,93 +1,88 @@
-LICENSE
-Copyright 2025 [Cristhian Fonseca -  cfonseca23]
+## Configuration and Usage
+1. Adjust connection parameters in appsettings.json, for example:
+   - OllamaConnectionString for the Ollama service URL.
+   - RedisConnection for Redis caching.
+   - KernelOptions for setting the model, vector size, etc.
 
-Todos los derechos reservados. Este software no puede ser usado, modificado, copiado, distribuido ni publicado sin el permiso expreso del propietario.
+2. Check Program.cs, where the services are injected:
+   - builder.AddServiceDefaults() and builder.AddBrainKernel() to initialize the application.
+   - KernelService is registered for use in controllers or endpoints.
 
-## Configuración y uso
-1. Ajustar parámetros de conexión en appsettings.json, por ejemplo:
-   - OllamaConnectionString para la URL del servicio Ollama.
-   - RedisConnection para la caché de Redis.
-   - KernelOptions para la configuración del modelo, tamaño del vector, etc.
-
-2. Revisar Program.cs, donde se inyectan los servicios:
-   - builder.AddServiceDefaults() y builder.AddBrainKernel() para inicializar la aplicación.
-   - Se registra KernelService para su uso en controladores o endpoints.
-
-3. Consultar KernelService.cs para ver la lógica principal del asistente, manejo de ChatHistory, uso de agentes y métodos de streaming.
+3. Refer to KernelService.cs for the main assistant logic, handling ChatHistory, agents, and streaming methods.
 
 ## Endpoints
 1. **POST /processRAG**  
-   Procesa artículos y genera respuestas con RAG (Retrieval-Augmented Generation).
+   Processes articles and generates answers using RAG (Retrieval-Augmented Generation).
 
 2. **POST /stream-agent-chat-history-tool**  
-   Transmite el contenido de chat detallado con herramientas, útil para obtener metadatos adicionales.
+   Streams detailed chat content with tools, useful for retrieving additional metadata.
 
 3. **POST /stream-agent-chat-history**  
-   Maneja múltiples agentes (Jarvis, CopilotJarvis, etc.) y envía mensajes de manera progresiva.
+   Manages multiple agents (Jarvis, CopilotJarvis, etc.) and sends messages progressively.
 
 4. **POST /stream-text-chat-history**  
-   Retorna mensajes de chat en streaming, mostrando metadatos y contenido en tiempo real.
+   Returns streaming chat messages, displaying metadata and content in real time.
 
 5. **POST /stream-text**  
-   Envía respuesta textual de forma continua, ideal para manejar respuestas extensas en partes.
+   Sends textual responses continuously, ideal for handling lengthy replies in parts.
 
-## Diagramas Mermaid
+## Mermaid Diagrams
 
 ### GetChatCompletionResponseAsync
 ```mermaid
 flowchart TD
-    A[Recibir userInput, history] --> B[Crear ChatCompletionAgent]
-    B --> C[Agregar al ChatHistory]
-    C --> D[Invocar agente]
-    D --> E[Retornar respuesta final]
+    A[Receive userInput, history] --> B[Create ChatCompletionAgent]
+    B --> C[Add to ChatHistory]
+    C --> D[Invoke agent]
+    D --> E[Return final answer]
 ```
 
 ### GetStreamingChatMessageContentsAsync
 ```mermaid
 flowchart TD
-    A[Recibir userInput, history] --> B[Clonar Kernel]
-    B --> C[Obtener IChatCompletionService]
-    C --> D[Generar mensajes en streaming]
-    D --> E[Emitir mensajes a la secuencia]
+    A[Receive userInput, history] --> B[Clone Kernel]
+    B --> C[Get IChatCompletionService]
+    C --> D[Generate streaming messages]
+    D --> E[Emit messages to stream]
 ```
 
 ### GetDetailedStreamingChatMessageToolContentsAsync
 ```mermaid
 flowchart TD
-    A[Recibir userInput, history] --> B[Clonar Kernel & plugins]
-    B --> C[Crear ChatCompletionAgent]
-    C --> D[Invocar agente con herramientas]
-    D --> E[Transmitir respuesta detallada]
+    A[Receive userInput, history] --> B[Clone Kernel & plugins]
+    B --> C[Create ChatCompletionAgent]
+    C --> D[Invoke agent with tools]
+    D --> E[Stream detailed response]
 ```
 
 ### GetStreamingAgentChatMessageContentsAsync
 ```mermaid
 flowchart TD
-    A[Recibir userInput, history, lista de agentes] --> B[Crear AgentGroupChat]
-    B --> C[Recorrer agentes en secuencia]
-    C --> D[Invocar cada agente en streaming]
-    D --> E[Devolver respuestas integradas]
+    A[Receive userInput, history, list of agents] --> B[Create AgentGroupChat]
+    B --> C[Iterate agents in sequence]
+    C --> D[Invoke each agent in streaming mode]
+    D --> E[Return integrated responses]
 ```
 
 ### ProcessRAGAsync
 ```mermaid
 flowchart TD
-    A[Recibir lista de artículos, userInput] --> B[Clonar Kernel]
-    B --> C[Generar y almacenar embeddings]
-    C --> D[Buscar artículos relevantes]
-    D --> E[Invocar Prompt streaming con contexto]
-    E --> F[Retornar respuesta RAG]
+    A[Receive list of articles, userInput] --> B[Clone Kernel]
+    B --> C[Generate and store embeddings]
+    C --> D[Search relevant articles]
+    D --> E[Invoke streaming Prompt with context]
+    E --> F[Return RAG response]
 ```
 
 ### CreateTextEmbeddingAsync
 ```mermaid
 flowchart TD
-    A[Recibir texto] --> B[Obtener ISemanticTextMemory]
-    B --> C[Guardar información y generar embedding]
-    C --> D[Retornar embeddings]
+    A[Receive text] --> B[Get ISemanticTextMemory]
+    B --> C[Store info and generate embedding]
+    C --> D[Return embeddings]
 ```
 
-## Relación de Endpoints y Métodos
+## Endpoints and Methods Relationship
 ```mermaid
 flowchart LR
     A[/processRAG/] --> B[ProcessRAGAsync]
@@ -97,7 +92,14 @@ flowchart LR
     I[/stream-text/] --> J[GetStreamingChatMessageContentsAsync]
 ```
 
-## Observaciones de appsettings
-- "ConnectionStrings" contiene cadenas de conexión para Ollama, Redis y Qdrant.
-- "KernelOptions" define la configuración del modelo de chat y embeddings.
-- Ajustar estos valores para apuntar a los servicios correctos y modificar el rendimiento de la IA según sea necesario.
+## Notes about appsettings
+- "ConnectionStrings" holds the connection URLs for Ollama, Redis, and Qdrant.
+- "KernelOptions" defines the chat and embedding model configuration.
+- Adjust these values to target the correct services and tweak AI performance as needed.
+
+## LICENSE
+
+LICENSE
+© 2025 [Cristhian Fonseca - cfonseca23]
+
+All rights reserved. This software may not be used, modified, copied, distributed, or published without the express permission of the owner.

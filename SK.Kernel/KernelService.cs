@@ -157,11 +157,11 @@ GetDetailedStreamingChatMessageToolContentsAsync(string userInput,
         #region agent
 
         public async IAsyncEnumerable<(string AuthorName, string Role, string Content, string ModelId)>
-    GetStreamingAgentChatMessageContentsAsync(string userInput,
-                                              ChatHistory? history,
-                                              IEnumerable<ChatCompletionAgent> agents,
-                                              PromptExecutionSettings? executionSettings = null,
-                                              [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        GetStreamingAgentChatMessageContentsAsync(string userInput,
+                                                  ChatHistory? history,
+                                                  IEnumerable<ChatCompletionAgent> agents,
+                                                  PromptExecutionSettings? executionSettings = null,
+                                                  [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             history ??= new ChatHistory();
             if (!string.IsNullOrWhiteSpace(userInput))
@@ -174,7 +174,6 @@ GetDetailedStreamingChatMessageToolContentsAsync(string userInput,
             {
                 FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
             };
-
 
             var agentJarvis = new ChatCompletionAgent
             {
@@ -193,7 +192,6 @@ GetDetailedStreamingChatMessageToolContentsAsync(string userInput,
             // Asegurarse de que los agentes predeterminados estén al principio
             var agentList = new List<ChatCompletionAgent> { agentJarvis };
 
-
             IEnumerable<ChatCompletionAgent> agentsLocal = agentList.Union(agents.Select(agentInfo => new ChatCompletionAgent
             {
                 Name = agentInfo.Name,
@@ -204,25 +202,44 @@ GetDetailedStreamingChatMessageToolContentsAsync(string userInput,
             AgentGroupChat chat = new(agentsLocal.ToArray());
 
             chat.AddChatMessages(history);
-            chat.ExecutionSettings.TerminationStrategy.MaximumIterations = 5;
 
-            string lastAgent = string.Empty;
-            await foreach (var response in chat.InvokeStreamingAsync(cancellationToken: cancellationToken))
+            foreach (var agent in agentsLocal)
             {
-                if (!lastAgent.Equals(response.AuthorName, StringComparison.Ordinal))
+                var contentMessage = new StringBuilder();
+                string lastAgent = string.Empty;
+                await foreach (StreamingChatMessageContent response in chat.InvokeStreamingAsync(agent, cancellationToken: cancellationToken))
                 {
-                    lastAgent = response.AuthorName;
+                    if (!lastAgent.Equals(response.AuthorName, StringComparison.Ordinal))
+                    {
+                        lastAgent = response.AuthorName;
+                    }
+                    contentMessage.Append(response.Content);
+                    yield return (response.AuthorName, response.Role.ToString(), response.Content, response.ModelId);
                 }
 
-                yield return (response.AuthorName, response.Role.ToString(), response.Content, response.ModelId);
+                // Agregar el último mensaje al historial de chat
+                chat.AddChatMessage(new ChatMessageContent
+                {
+                    AuthorName = agent.Name,
+                    Role = AuthorRole.Assistant,
+                    Content = contentMessage.ToString(),
+                    //ModelId = agent.Name, // Asumiendo que el ModelId es el nombre del agente
+                    //Timestamp = DateTime.UtcNow
+                });
             }
         }
 
+
         #endregion
+
+        #region RAG
 
         public async IAsyncEnumerable<string> ProcessRAGAsync(List<DicDataRag> articles, string userInput)
         {
             var kernelRag = _kernel.Clone();
+
+            KernelPlugin DateTimePlugin = KernelPluginFactory.CreateFromType<DateTimePlugin>();
+            kernelRag.Plugins.Add(DateTimePlugin);
 
             var movieData = new List<Movie>()
     {
@@ -313,6 +330,8 @@ GetDetailedStreamingChatMessageToolContentsAsync(string userInput,
 
             Console.WriteLine(contextLocal.ToString());
             var promptChunked = @"Eres un asistente útil que genera consultas de búsqueda "
+                + "fecha: {{DateTimePlugin.DateWithTime}}"
+                + "TimeZone: {{DateTimePlugin.DateWithTime}}"
                 + "basadas en una sola consulta de entrada. "
                 + "responder para contestar la pregunta original. "
                 + "Si hay acrónimos y palabras que no conoces, no intentes reformularlas. "
@@ -342,12 +361,17 @@ GetDetailedStreamingChatMessageToolContentsAsync(string userInput,
             {
                 yield return res.ToString();
             }
+            yield return Environment.NewLine + "\n________________________________________________:\n";
+            yield return Environment.NewLine + "\n________________________________________________:\n";
+            yield return Environment.NewLine + "\n________________________________________________:\n";
             yield return Environment.NewLine + "\nContexto Fijo:\n";
             yield return context.ToString();
 
             yield return Environment.NewLine + "\nContexto Dinamico:\n";
             yield return contextLocal.ToString();
         }
+
+        #endregion
 
 
 

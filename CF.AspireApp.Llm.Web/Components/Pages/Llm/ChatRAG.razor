@@ -25,7 +25,7 @@
         }
     </div>
 
-    <MessageInputComponent OnMessageSubmit="StartStream" IsStreaming="@isStreaming" />
+    <MessageInputComponent OnMessageSubmit="StartStream" IsStreaming="@isStreaming" InitialUserInput="@initialUserInput" />
 
     <LoadingSpinnerComponent IsVisible="@isStreaming" />
 
@@ -83,6 +83,7 @@
     private bool isEditingArticle = false;
     private (string Id, string Text) editingArticle = ("", "");
     private int editingArticleIndex = -1;
+    private string initialUserInput = "¿dime una pelicula familiar y dime quien compone el equipo de capa media?"; // Variable para el mensaje predeterminado
 
     protected override void OnInitialized()
     {
@@ -99,18 +100,11 @@
 
     private void AddInitialArticles()
     {
-        articles.Add(("1", "Artículo sobre tecnología. Este artículo explora las últimas tendencias en inteligencia artificial y su impacto en diversas industrias, incluyendo ejemplos de empresas que están liderando la innovación."));
-        articles.Add(("2", "Artículo sobre marketing. Este artículo analiza las estrategias de marketing digital más efectivas para el año 2023, destacando casos de estudio de campañas exitosas."));
-        articles.Add(("3", "Artículo sobre finanzas. Este artículo ofrece una visión profunda sobre la gestión de inversiones y las mejores prácticas para el ahorro, con consejos de expertos financieros."));
-        articles.Add(("4", "Artículo sobre salud. Este artículo discute la importancia de la salud mental y ofrece consejos prácticos para mantener un equilibrio emocional, incluyendo técnicas de mindfulness y meditación."));
-        articles.Add(("5", "Artículo sobre educación. Este artículo examina las nuevas metodologías de enseñanza y cómo la tecnología está transformando el aprendizaje, con ejemplos de herramientas educativas innovadoras."));
-        articles.Add(("6", "Artículo sobre medio ambiente. Este artículo aborda los desafíos del cambio climático y las iniciativas sostenibles que se están implementando a nivel global, con un enfoque en energías renovables."));
-        articles.Add(("7", "Artículo sobre deportes. Este artículo cubre los últimos avances en tecnología deportiva y cómo están mejorando el rendimiento de los atletas, con entrevistas a deportistas de élite."));
-        articles.Add(("8", "Artículo sobre entretenimiento. Este artículo analiza las tendencias actuales en la industria del entretenimiento, incluyendo el auge de las plataformas de streaming y su impacto en el cine y la televisión."));
-        articles.Add(("9", "Artículo sobre viajes. Este artículo ofrece guías de viaje para destinos exóticos, con recomendaciones de actividades y lugares para visitar, basadas en experiencias de viajeros frecuentes."));
-        articles.Add(("10", "Artículo sobre gastronomía. Este artículo explora la evolución de la cocina moderna, destacando chefs innovadores y recetas que están marcando tendencia en el mundo culinario."));
+        articles.Add(("1", "El Henry es el director de tecnología, líder de Rigoberto, Julio y Hector David."));
+        articles.Add(("2", "El líder Rigoberto del area de capa media, tiene a su cargo a Cristhian, Andres, Jeisson, Elkin y Wilmar."));
+        articles.Add(("3", "El líder Julio del area de canales, tiene a su cargo Catherine, Diego."));
+        articles.Add(("4", "El líder David del area de core, tiene a su cargo Sandra, Oscar."));
     }
-
 
     private async Task StartStream(string userInput)
     {

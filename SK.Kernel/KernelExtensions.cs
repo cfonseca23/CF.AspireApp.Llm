@@ -8,7 +8,6 @@ namespace SK.Kernel;
 
 #pragma warning disable SKEXP0070 
 
-
 public static class KernelExtensions
 {
     public static void AddBrainKernel(this IHostApplicationBuilder builder)
@@ -17,12 +16,16 @@ public static class KernelExtensions
             .BindConfiguration(nameof(KernelOptions))
             .ValidateOnStart();
 
-        var options = builder.Configuration.GetSection(nameof(KernelOptions)).Get<KernelOptions>()!;
+        var options = builder.Configuration.GetSection(nameof(KernelOptions)).Get<KernelOptions>();
+        if (options == null)
+        {
+            throw new InvalidOperationException("KernelOptions configuration is missing or invalid.");
+        }
 
         var kernelBuilder = Microsoft.SemanticKernel.Kernel.CreateBuilder();
         kernelBuilder.Services.AddLogging(c => c.AddConsole().SetMinimumLevel(LogLevel.Information));
 
-        string ollamaEndpoint = builder.Configuration.GetConnectionString(Constants.OllamaConnectionString)!;
+        string ollamaEndpoint = options.OllamaAI.Endpoint;
         var baseHost = new Uri(ollamaEndpoint).GetLeftPart(UriPartial.Authority);
 
         // Registrar LocalServerClientHandler
@@ -44,21 +47,17 @@ public static class KernelExtensions
         var client = serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient("OllamaClient");
 
         kernelBuilder
-            //.AddAzureOpenAIChatCompletion(options.ChatModelId, baseHost, "apikey", httpClient: client)
-            .AddOllamaChatCompletion(options.ChatModelId, httpClient: client);
-            //.AddOllamaTextEmbeddingGeneration(options.TextEmbeddingModelId, new Uri(baseHost));
+            .AddOllamaChatCompletion(options.OllamaAI.ChatModelName, httpClient: client);
 
         kernelBuilder.AddLocalTextEmbeddingGeneration();
-
 
         builder.Services.AddTransient((serviceProvider) =>
         {
             return new Microsoft.SemanticKernel.Kernel(serviceProvider);
         });
 
-        string[] qdrantEndpoint = builder.Configuration.GetConnectionString(Constants.QdrantHttpConnectionString)!.Split(";");
-        string qdrantUrl = qdrantEndpoint[0]["Endpoint=".Length..];
-        string qdrantApiKey = qdrantEndpoint[1]["Key=".Length..];
+        string qdrantUrl = options.QdrantClient.Endpoint;
+        string qdrantApiKey = options.QdrantClient.ApiKey;
 
         HttpClient qdrantClient = new()
         {
@@ -69,5 +68,9 @@ public static class KernelExtensions
         var kernel = kernelBuilder.Build();
         builder.Services.AddSingleton(kernel);
         builder.Services.AddSingleton<KernelService>();
+
+        // Inyectar las configuraciones como servicios
+        builder.Services.AddSingleton(options.OllamaAI);
+        builder.Services.AddSingleton(options.QdrantClient);
     }
 }

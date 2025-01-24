@@ -16,7 +16,7 @@ namespace SK.Kernel
             {
                 var options = sp.GetRequiredService<IOptions<KernelOptions>>();
                 var logger = sp.GetRequiredService<ILogger<LocalServerClientHandler>>();
-                var localServerClientHandler = new LocalServerClientHandler(options.Value.OllamaAI.Endpoint, logger);
+                var localServerClientHandler = HttpClientHandlerFactory.CreateLocalServerClientHandler(options.Value.OllamaAI.Endpoint, logger);
                 return new KernelService(options, localServerClientHandler);
             });
         }

@@ -5,52 +5,41 @@ using Microsoft.SemanticKernel;
 using System;
 using System.Net.Http;
 
-namespace SK.Kernel;
-
-public static class KernelHelper
+namespace SK.Kernel
 {
-    public static IKernelBuilder GetKernelBuilder(KernelOptions options)
+    public static class KernelHelper
     {
-        var kernelBuilder = Microsoft.SemanticKernel.Kernel.CreateBuilder();
-        kernelBuilder.Services.AddLogging(c => c.AddConsole().SetMinimumLevel(LogLevel.Trace));
-
-        string ollamaEndpoint = options.OllamaAI.Endpoint;
-        var baseHost = new Uri(ollamaEndpoint).GetLeftPart(UriPartial.Authority);
-
-        // Registrar LocalServerClientHandler con la URL en el momento de la creación del kernel
-        kernelBuilder.Services.AddTransient<LocalServerClientHandler>(sp =>
+        public static IKernelBuilder GetKernelBuilder(KernelOptions options)
         {
-            var logger = sp.GetRequiredService<ILogger<LocalServerClientHandler>>();
-            return new LocalServerClientHandler(baseHost, logger);
-        });
+            var kernelBuilder = Microsoft.SemanticKernel.Kernel.CreateBuilder();
+            kernelBuilder.Services.AddLogging(c => c.AddConsole().SetMinimumLevel(LogLevel.Trace));
 
-        // Configurar HttpClient utilizando LocalServerClientHandler
-        kernelBuilder.Services.AddHttpClient("OllamaClient")
-            .ConfigurePrimaryHttpMessageHandler<LocalServerClientHandler>()
-            .ConfigureHttpClient(client =>
-            {
-                client.BaseAddress = new Uri(baseHost);
-            });
+            string ollamaEndpoint = options.OllamaAI.Endpoint;
+            var baseHost = new Uri(ollamaEndpoint).GetLeftPart(UriPartial.Authority);
 
-        var serviceProvider = kernelBuilder.Services.BuildServiceProvider();
-        var client = serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient("OllamaClient");
+            // Configurar HttpClient utilizando LocalServerClientHandler
+            HttpClientHandlerFactory.ConfigureHttpClient(kernelBuilder.Services, baseHost);
+
+            var serviceProvider = kernelBuilder.Services.BuildServiceProvider();
+            var client = serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient("OllamaClient");
 
 #pragma warning disable SKEXP0070 // Este tipo se incluye solo con fines de evaluación y está sujeto a cambios o a que se elimine en próximas actualizaciones. Suprima este diagnóstico para continuar.
-        kernelBuilder
-            .AddOllamaChatCompletion(options.OllamaAI.ChatModelName, httpClient: client);
+            kernelBuilder
+                .AddOllamaChatCompletion(options.OllamaAI.ChatModelName, httpClient: client);
 #pragma warning restore SKEXP0070 // Este tipo se incluye solo con fines de evaluación y está sujeto a cambios o a que se elimine en próximas actualizaciones. Suprima este diagnóstico para continuar.
 
-        kernelBuilder.AddLocalTextEmbeddingGeneration();
+            kernelBuilder.AddLocalTextEmbeddingGeneration();
 
-        string qdrantUrl = options.QdrantClient.Endpoint;
-        string qdrantApiKey = options.QdrantClient.ApiKey;
+            string qdrantUrl = options.QdrantClient.Endpoint;
+            string qdrantApiKey = options.QdrantClient.ApiKey;
 
-        HttpClient qdrantClient = new()
-        {
-            BaseAddress = new Uri(qdrantUrl),
-            DefaultRequestHeaders = { { "api-key", qdrantApiKey } }
-        };
+            HttpClient qdrantClient = new()
+            {
+                BaseAddress = new Uri(qdrantUrl),
+                DefaultRequestHeaders = { { "api-key", qdrantApiKey } }
+            };
 
-        return kernelBuilder;
+            return kernelBuilder;
+        }
     }
 }

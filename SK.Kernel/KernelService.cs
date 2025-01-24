@@ -24,6 +24,7 @@ using Microsoft.SemanticKernel.Connectors.InMemory;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.VectorData;
 using System.Text;
+using Microsoft.Extensions.Options;
 
 #pragma warning disable SKEXP0001
 #pragma warning disable SKEXP0110
@@ -39,12 +40,12 @@ namespace SK.Kernel
         private readonly KernelFunction _function;
         private readonly LocalServerClientHandler _localServerClientHandler;
 
-
-        public KernelService(Microsoft.SemanticKernel.Kernel kernel, LocalServerClientHandler localServerClientHandler)
+        public KernelService(IOptions<KernelOptions> options, LocalServerClientHandler localServerClientHandler)
         {
-            _kernel = kernel;
-            _function = _kernel.CreateFunctionFromPrompt(Constants.Prompt);
             _localServerClientHandler = localServerClientHandler;
+            var kernelOptions = options.Value;
+            _kernel = KernelHelper.GetKernelBuilder(kernelOptions).Build();
+            _function = _kernel.CreateFunctionFromPrompt(Constants.Prompt);
         }
 
         public async Task<string> GetChatCompletionResponseAsync(string? userInput, string? history)

@@ -17,7 +17,7 @@ builder.AddBrainKernel();
 
 // Add services to the container.
 builder.Services.AddProblemDetails();
-builder.Services.AddSingleton<KernelService>();
+//builder.Services.AddSingleton<KernelService>();
 
 var app = builder.Build();
 

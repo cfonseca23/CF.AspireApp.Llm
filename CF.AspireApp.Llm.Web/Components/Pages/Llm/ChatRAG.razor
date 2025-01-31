@@ -109,7 +109,7 @@
     private async Task StartStream(string userInput)
     {
         isStreaming = true;
-        cancellationTokenSource = new CancellationTokenSource();
+        cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromMinutes(5));
         finalMessage.Clear(); // Limpiar el mensaje final
         messages.Clear(); // Reiniciar el historial de mensajes
 

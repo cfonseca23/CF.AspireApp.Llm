@@ -3,6 +3,7 @@
 using System.ComponentModel;
 
 namespace SK.Kernel.Plugins;
+
 public class DateTimePlugin
 {
     [KernelFunction, Description("Obtener el nombre de la zona horaria local")]

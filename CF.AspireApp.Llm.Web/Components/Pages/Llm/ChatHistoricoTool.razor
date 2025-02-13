@@ -18,11 +18,11 @@
 
     <div style="height: 800px; overflow-y: auto; border: 1px solid #ccc; padding: 10px;">
         @foreach (var message in messages)
-        {
-            <div class="@(message.Role == AuthorRole.User ? "user-message" : "assistant-message")">
+    {
+        <div class="@(message.Role == AuthorRole.User ? "user-message" : "assistant-message")">
                 <ChatMessageContentComponent Message="@message" />
             </div>
-        }
+    }
     </div>
 
     <MessageInputComponent OnMessageSubmit="StartStreamTool" IsStreaming="@isStreaming" />
@@ -47,76 +47,76 @@
 </style>
 
 @code {
-    private ChatHistory messages = new();
-    private bool isStreaming = false;
-    private CancellationTokenSource? cancellationTokenSource;
-    private StringBuilder finalMessage = new StringBuilder(); // Variable para almacenar el mensaje final
+private ChatHistory messages = new();
+private bool isStreaming = false;
+private CancellationTokenSource? cancellationTokenSource;
+private StringBuilder finalMessage = new StringBuilder(); // Variable para almacenar el mensaje final
 
-    protected override void OnInitialized()
+protected override void OnInitialized()
+{
+    base.OnInitialized();
+    AddInitialMessage();
+}
+
+private void AddInitialMessage()
+{
+    var initialMessage = "Bienvenido al chat con LLM. ¿En qué puedo ayudarte hoy?";
+    messages.AddSystemMessage(initialMessage);
+}
+
+private async Task StartStreamTool(string userInput)
+{
+    isStreaming = true;
+    cancellationTokenSource = new CancellationTokenSource();
+    finalMessage.Clear(); // Limpiar el mensaje final
+
+    try
     {
-        base.OnInitialized();
-        AddInitialMessage();
+        messages.AddUserMessage(userInput);
+
+        // Crear una copia de los mensajes sin el último mensaje del usuario
+        var messagesWithoutLast = new ChatHistory(messages.Take(messages.Count - 1).ToList());
+
+        await TextStreamApiClient.StartTextStreamWithHistoryToolAsync(userInput, messagesWithoutLast, OnMessageReceivedAsyncTool, cancellationTokenSource.Token);
+    }
+    catch (OperationCanceledException)
+    {
+        messages.AddSystemMessage("Stream canceled.");
+    }
+    finally
+    {
+        isStreaming = false;
     }
 
-    private void AddInitialMessage()
+    StateHasChanged();
+}
+
+private void StopStreamTool()
+{
+    cancellationTokenSource?.Cancel();
+}
+
+private async Task OnMessageReceivedAsyncTool(string message)
+{
+    Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] Mensaje recibido: {message}");
+    await InvokeAsync(() =>
     {
-        var initialMessage = "Bienvenido al chat con LLM. ¿En qué puedo ayudarte hoy?";
-        messages.AddSystemMessage(initialMessage);
-    }
-
-    private async Task StartStreamTool(string userInput)
-    {
-        isStreaming = true;
-        cancellationTokenSource = new CancellationTokenSource();
-        finalMessage.Clear(); // Limpiar el mensaje final
-
-        try
+        var lastMessage = messages.LastOrDefault();
+        if (lastMessage != null && lastMessage.Role == AuthorRole.Assistant)
         {
-            messages.AddUserMessage(userInput);
-
-            // Crear una copia de los mensajes sin el último mensaje del usuario
-            var messagesWithoutLast = new ChatHistory(messages.Take(messages.Count - 1).ToList());
-
-            await TextStreamApiClient.StartTextStreamWithHistoryToolAsync(userInput, messagesWithoutLast, OnMessageReceivedAsyncTool, cancellationTokenSource.Token);
+            lastMessage.Content += message;
         }
-        catch (OperationCanceledException)
+        else
         {
-            messages.AddSystemMessage("Stream canceled.");
+            ChatMessageContent chatMessageContent = new ChatMessageContent(AuthorRole.Assistant, message, modelId: "defaultModelId");
+            messages.Add(chatMessageContent);
         }
-        finally
-        {
-            isStreaming = false;
-        }
+
+        // Actualizar el mensaje final
+        finalMessage.Append(message);
 
         StateHasChanged();
-    }
-
-    private void StopStreamTool()
-    {
-        cancellationTokenSource?.Cancel();
-    }
-
-    private async Task OnMessageReceivedAsyncTool(string message)
-    {
-        Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] Mensaje recibido: {message}");
-        await InvokeAsync(() =>
-        {
-            var lastMessage = messages.LastOrDefault();
-            if (lastMessage != null && lastMessage.Role == AuthorRole.Assistant)
-            {
-                lastMessage.Content += message;
-            }
-            else
-            {
-                ChatMessageContent chatMessageContent = new ChatMessageContent(AuthorRole.Assistant, message, modelId: "defaultModelId");
-                messages.Add(chatMessageContent);
-            }
-
-            // Actualizar el mensaje final
-            finalMessage.Append(message);
-
-            StateHasChanged();
-        });
-    }
+    });
+}
 }
 

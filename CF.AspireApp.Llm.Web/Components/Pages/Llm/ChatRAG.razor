@@ -18,11 +18,11 @@
 
     <div style="height: 800px; overflow-y: auto; border: 1px solid #ccc; padding: 10px;">
         @foreach (var message in messages)
-        {
-            <div class="@(message.Role == AuthorRole.User ? "user-message" : "assistant-message")">
+    {
+        <div class="@(message.Role == AuthorRole.User ? "user-message" : "assistant-message")">
                 <ChatMessageContentComponent Message="@message" />
             </div>
-        }
+    }
     </div>
 
     <MessageInputComponent OnMessageSubmit="StartStream" IsStreaming="@isStreaming" InitialUserInput="@initialUserInput" />
@@ -33,20 +33,20 @@
         <h2>Artículos</h2>
         <ul>
             @foreach (var article in articles)
-            {
-                <li>
+        {
+            <li>
                     <strong>@article.Id:</strong> @article.Text
                     <button @onclick="() => EditArticle(article)">Editar</button>
                     <button @onclick="() => DeleteArticle(article)">Eliminar</button>
                 </li>
-            }
+        }
         </ul>
         <button @onclick="AddArticle">Agregar Artículo</button>
     </div>
 
     @if (isEditingArticle)
-    {
-        <div>
+{
+    <div>
             <h3>@(editingArticleIndex >= 0 ? "Editar Artículo" : "Agregar Artículo")</h3>
             <label>ID:</label>
             <input @bind="editingArticle.Id" />
@@ -55,7 +55,7 @@
             <button @onclick="SaveArticle">Guardar</button>
             <button @onclick="CancelEdit">Cancelar</button>
         </div>
-    }
+}
 </div>
 
 <style>
@@ -75,125 +75,125 @@
 </style>
 
 @code {
-    private ChatHistory messages = new();
-    private bool isStreaming = false;
-    private CancellationTokenSource? cancellationTokenSource;
-    private StringBuilder finalMessage = new StringBuilder(); // Variable para almacenar el mensaje final
-    private List<(string Id, string Text)> articles = new();
-    private bool isEditingArticle = false;
-    private (string Id, string Text) editingArticle = ("", "");
-    private int editingArticleIndex = -1;
-    private string initialUserInput = "1¿dime una pelicula familiar? 2.¿quien compone el equipo de capa media? 3.¿que hora es?"; // Variable para el mensaje predeterminado
+private ChatHistory messages = new();
+private bool isStreaming = false;
+private CancellationTokenSource? cancellationTokenSource;
+private StringBuilder finalMessage = new StringBuilder(); // Variable para almacenar el mensaje final
+private List<(string Id, string Text)> articles = new();
+private bool isEditingArticle = false;
+private (string Id, string Text) editingArticle = ("", "");
+private int editingArticleIndex = -1;
+private string initialUserInput = "1¿dime una pelicula familiar? 2.¿quien compone el equipo de capa media? 3.¿que hora es?"; // Variable para el mensaje predeterminado
 
-    protected override void OnInitialized()
+protected override void OnInitialized()
+{
+    base.OnInitialized();
+    AddInitialMessage();
+    AddInitialArticles();
+}
+
+private void AddInitialMessage()
+{
+    // var initialMessage = "Bienvenido al chat con Artículos. ¿En qué puedo ayudarte hoy?";
+    // messages.AddAssistantMessage(initialMessage);
+}
+
+private void AddInitialArticles()
+{
+    articles.Add(("1", "El Henry es el director de tecnología, líder de Rigoberto, Julio y Hector David."));
+    articles.Add(("2", "El líder Rigoberto del area de capa media, tiene a su cargo a Cristhian, Andres, Jeisson, Elkin y Wilmar."));
+    articles.Add(("3", "El líder Julio del area de canales, tiene a su cargo Catherine, Diego."));
+    articles.Add(("4", "El líder David del area de core, tiene a su cargo Sandra, Oscar."));
+}
+
+private async Task StartStream(string userInput)
+{
+    isStreaming = true;
+    cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+    finalMessage.Clear(); // Limpiar el mensaje final
+    messages.Clear(); // Reiniciar el historial de mensajes
+
+    try
     {
-        base.OnInitialized();
-        AddInitialMessage();
-        AddInitialArticles();
+        messages.AddUserMessage(userInput);
+
+        await TextStreamApiClient.StartTextStreamFromArticlesAsync(articles, userInput, OnMessageReceivedAsync, cancellationTokenSource.Token);
+    }
+    catch (OperationCanceledException)
+    {
+        messages.AddSystemMessage("Stream canceled.");
+    }
+    finally
+    {
+        isStreaming = false;
     }
 
-    private void AddInitialMessage()
-    {
-        // var initialMessage = "Bienvenido al chat con Artículos. ¿En qué puedo ayudarte hoy?";
-        // messages.AddAssistantMessage(initialMessage);
-    }
+    StateHasChanged();
+}
 
-    private void AddInitialArticles()
-    {
-        articles.Add(("1", "El Henry es el director de tecnología, líder de Rigoberto, Julio y Hector David."));
-        articles.Add(("2", "El líder Rigoberto del area de capa media, tiene a su cargo a Cristhian, Andres, Jeisson, Elkin y Wilmar."));
-        articles.Add(("3", "El líder Julio del area de canales, tiene a su cargo Catherine, Diego."));
-        articles.Add(("4", "El líder David del area de core, tiene a su cargo Sandra, Oscar."));
-    }
-
-    private async Task StartStream(string userInput)
-    {
-        isStreaming = true;
-        cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromMinutes(5));
-        finalMessage.Clear(); // Limpiar el mensaje final
-        messages.Clear(); // Reiniciar el historial de mensajes
-
-        try
-        {
-            messages.AddUserMessage(userInput);
-
-            await TextStreamApiClient.StartTextStreamFromArticlesAsync(articles, userInput, OnMessageReceivedAsync, cancellationTokenSource.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            messages.AddSystemMessage("Stream canceled.");
-        }
-        finally
-        {
-            isStreaming = false;
-        }
-
-        StateHasChanged();
-    }
-
-    private void StopStream()
-    {
-        cancellationTokenSource?.Cancel();
-    }
+private void StopStream()
+{
+    cancellationTokenSource?.Cancel();
+}
 
 #pragma warning disable SKEXP0001
-    private async Task OnMessageReceivedAsync(string message)
+private async Task OnMessageReceivedAsync(string message)
+{
+    Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] Mensaje recibido: {message}");
+    await InvokeAsync(() =>
     {
-        Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] Mensaje recibido: {message}");
-        await InvokeAsync(() =>
+        var lastMessage = messages.LastOrDefault();
+        if (lastMessage != null && lastMessage.Role == AuthorRole.Assistant)
         {
-            var lastMessage = messages.LastOrDefault();
-            if (lastMessage != null && lastMessage.Role == AuthorRole.Assistant)
-            {
-                lastMessage.Content += message;
-            }
-            else
-            {
-                messages.AddAssistantMessage(message);
-            }
-
-            // Actualizar el mensaje final
-            finalMessage.Append(message);
-
-            StateHasChanged();
-        });
-    }
-#pragma warning restore SKEXP0001
-
-    private void AddArticle()
-    {
-        editingArticle = ("", "");
-        editingArticleIndex = -1;
-        isEditingArticle = true;
-    }
-
-    private void EditArticle((string Id, string Text) article)
-    {
-        editingArticle = article;
-        editingArticleIndex = articles.IndexOf(article);
-        isEditingArticle = true;
-    }
-
-    private void SaveArticle()
-    {
-        if (editingArticleIndex >= 0)
-        {
-            articles[editingArticleIndex] = editingArticle;
+            lastMessage.Content += message;
         }
         else
         {
-            articles.Add(editingArticle);
+            messages.AddAssistantMessage(message);
         }
-        isEditingArticle = false;
-    }
 
-    private void CancelEdit()
-    {
-        isEditingArticle = false;
-    }
+        // Actualizar el mensaje final
+        finalMessage.Append(message);
 
-    private void DeleteArticle((string Id, string Text) article)
+        StateHasChanged();
+    });
+}
+#pragma warning restore SKEXP0001
+
+private void AddArticle()
+{
+    editingArticle = ("", "");
+    editingArticleIndex = -1;
+    isEditingArticle = true;
+}
+
+private void EditArticle((string Id, string Text) article)
+{
+    editingArticle = article;
+    editingArticleIndex = articles.IndexOf(article);
+    isEditingArticle = true;
+}
+
+private void SaveArticle()
+{
+    if (editingArticleIndex >= 0)
     {
-        articles.Remove(article);
+        articles[editingArticleIndex] = editingArticle;
     }
+    else
+    {
+        articles.Add(editingArticle);
+    }
+    isEditingArticle = false;
+}
+
+private void CancelEdit()
+{
+    isEditingArticle = false;
+}
+
+private void DeleteArticle((string Id, string Text) article)
+{
+    articles.Remove(article);
+}
 }

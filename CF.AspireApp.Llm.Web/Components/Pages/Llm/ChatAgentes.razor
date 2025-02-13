@@ -18,11 +18,11 @@
 
     <div style="height: 800px; overflow-y: auto; border: 1px solid #ccc; padding: 10px;">
         @foreach (var message in messages)
-        {
-            <div class="@(message.Role == AuthorRole.User ? "user-message" : "assistant-message")">
+    {
+        <div class="@(message.Role == AuthorRole.User ? "user-message" : "assistant-message")">
                 <ChatMessageContentComponent Message="@message" />
             </div>
-        }
+    }
     </div>
 
     <MessageInputComponent OnMessageSubmit="StartStream" IsStreaming="@isStreaming" />
@@ -33,21 +33,21 @@
         <h2>Agentes</h2>
         <ul>
             @foreach (var agent in agents.OrderByDescending(a => a.IsActive))
-            {
-                <li>
+        {
+            <li>
                     <strong>@agent.Name:</strong> @agent.Instructions
                     <button @onclick="() => ToggleAgentStatus(agent)">@(agent.IsActive ? "Desactivar" : "Activar")</button>
                     <button @onclick="() => EditAgent(agent)">Editar</button>
                     <button @onclick="() => DeleteAgent(agent)">Eliminar</button>
                 </li>
-            }
+        }
         </ul>
         <button @onclick="AddAgent">Agregar Agente</button>
     </div>
 
     @if (isEditingAgent)
-    {
-        <div>
+{
+    <div>
             <h3>@(editingAgentIndex >= 0 ? "Editar Agente" : "Agregar Agente")</h3>
             <label>Nombre:</label>
             <input @bind="editingAgent.Name" />
@@ -56,7 +56,7 @@
             <button @onclick="SaveAgent">Guardar</button>
             <button @onclick="CancelEdit">Cancelar</button>
         </div>
-    }
+}
 </div>
 
 <style>
@@ -76,140 +76,140 @@
 </style>
 
 @code {
-    private ChatHistory messages = new();
-    private bool isStreaming = false;
-    private CancellationTokenSource? cancellationTokenSource;
-    private StringBuilder finalMessage = new StringBuilder(); // Variable para almacenar el mensaje final
-    private List<ChatCompletionAgent> agents = new();
-    private bool isEditingAgent = false;
-    private ChatCompletionAgent editingAgent = new ChatCompletionAgent("", "");
-    private int editingAgentIndex = -1;
+private ChatHistory messages = new();
+private bool isStreaming = false;
+private CancellationTokenSource? cancellationTokenSource;
+private StringBuilder finalMessage = new StringBuilder(); // Variable para almacenar el mensaje final
+private List<ChatCompletionAgent> agents = new();
+private bool isEditingAgent = false;
+private ChatCompletionAgent editingAgent = new ChatCompletionAgent("", "");
+private int editingAgentIndex = -1;
 
-    protected override void OnInitialized()
+protected override void OnInitialized()
+{
+    base.OnInitialized();
+    AddInitialMessage();
+    AddInitialAgents();
+}
+
+private void AddInitialMessage()
+{
+    // var initialMessage = "Bienvenido al chat con Agentes. ¿En qué puedo ayudarte hoy?";
+    // messages.AddAssistantMessage(initialMessage);
+}
+
+private void AddInitialAgents()
+{
+    agents.Add(new ChatCompletionAgent("CEOAgentIAAssistant", "Asistente personal del CEO, proporciona información estratégica y apoyo en la toma de decisiones, propones proyectos y sub proyectos.", true));
+    agents.Add(new ChatCompletionAgent("MarketingAgentIA", "Proporciona estrategias de marketing y análisis de mercado.", false));
+    agents.Add(new ChatCompletionAgent("FinanceAgentIA", "Asiste en la gestión financiera y análisis de presupuestos.", false));
+    agents.Add(new ChatCompletionAgent("HRManagerAgentIA", "Ayuda en la gestión de recursos humanos y resolución de conflictos laborales.", false));
+    agents.Add(new ChatCompletionAgent("TechSupportAgentIA", "Proporciona soporte técnico y soluciones a problemas tecnológicos.", false));
+}
+
+private async Task StartStream(string userInput)
+{
+    isStreaming = true;
+    cancellationTokenSource = new CancellationTokenSource();
+    finalMessage.Clear(); // Limpiar el mensaje final
+
+    try
     {
-        base.OnInitialized();
-        AddInitialMessage();
-        AddInitialAgents();
+        messages.AddUserMessage(userInput);
+
+        // Crear una copia de los mensajes sin el último mensaje del usuario
+        var messagesWithoutLast = new ChatHistory(messages.Take(messages.Count - 1).ToList()); 
+        List<ChatCompletionAgent> activeAgents = agents.Where(a => a.IsActive).ToList();
+
+
+        await TextStreamApiClient.StartTextStreamWithAgentHistoryAsync(userInput, messagesWithoutLast, activeAgents, OnMessageReceivedAsync, cancellationTokenSource.Token);
+    }
+    catch (OperationCanceledException)
+    {
+        messages.AddSystemMessage("Stream canceled.");
+    }
+    finally
+    {
+        isStreaming = false;
     }
 
-    private void AddInitialMessage()
-    {
-        // var initialMessage = "Bienvenido al chat con Agentes. ¿En qué puedo ayudarte hoy?";
-        // messages.AddAssistantMessage(initialMessage);
-    }
+    StateHasChanged();
+}
 
-    private void AddInitialAgents()
-    {
-        agents.Add(new ChatCompletionAgent("CEOAgentIAAssistant", "Asistente personal del CEO, proporciona información estratégica y apoyo en la toma de decisiones, propones proyectos y sub proyectos.", true));
-        agents.Add(new ChatCompletionAgent("MarketingAgentIA", "Proporciona estrategias de marketing y análisis de mercado.", false));
-        agents.Add(new ChatCompletionAgent("FinanceAgentIA", "Asiste en la gestión financiera y análisis de presupuestos.", false));
-        agents.Add(new ChatCompletionAgent("HRManagerAgentIA", "Ayuda en la gestión de recursos humanos y resolución de conflictos laborales.", false));
-        agents.Add(new ChatCompletionAgent("TechSupportAgentIA", "Proporciona soporte técnico y soluciones a problemas tecnológicos.", false));
-    }
+private void StopStream()
+{
+    cancellationTokenSource?.Cancel();
+}
 
-    private async Task StartStream(string userInput)
-    {
-        isStreaming = true;
-        cancellationTokenSource = new CancellationTokenSource();
-        finalMessage.Clear(); // Limpiar el mensaje final
-
-        try
-        {
-            messages.AddUserMessage(userInput);
-
-            // Crear una copia de los mensajes sin el último mensaje del usuario
-            var messagesWithoutLast = new ChatHistory(messages.Take(messages.Count - 1).ToList()); 
-            List<ChatCompletionAgent> activeAgents = agents.Where(a => a.IsActive).ToList();
-
-
-            await TextStreamApiClient.StartTextStreamWithAgentHistoryAsync(userInput, messagesWithoutLast, activeAgents, OnMessageReceivedAsync, cancellationTokenSource.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            messages.AddSystemMessage("Stream canceled.");
-        }
-        finally
-        {
-            isStreaming = false;
-        }
-
-        StateHasChanged();
-    }
-
-    private void StopStream()
-    {
-        cancellationTokenSource?.Cancel();
-    }
-
-    private string lastAgentName = string.Empty; // Nueva propiedad para almacenar el nombre del último agente
+private string lastAgentName = string.Empty; // Nueva propiedad para almacenar el nombre del último agente
 
 #pragma warning disable SKEXP0001
-    private async Task OnMessageReceivedAsync(StreamingMessageAgent message)
+private async Task OnMessageReceivedAsync(StreamingMessageAgent message)
+{
+    Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] Mensaje recibido: {message.content}");
+    await InvokeAsync(() =>
     {
-        Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] Mensaje recibido: {message.content}");
-        await InvokeAsync(() =>
+        var lastMessage = messages.LastOrDefault();
+        if (lastMessage != null && lastMessage.Role == AuthorRole.Assistant && lastAgentName == message.authorName)
         {
-            var lastMessage = messages.LastOrDefault();
-            if (lastMessage != null && lastMessage.Role == AuthorRole.Assistant && lastAgentName == message.authorName)
-            {
-                lastMessage.Content += message.content;
-            }
-            else
-            {
-                ChatMessageContent chatMessageContent = new ChatMessageContent(AuthorRole.Assistant, message.content, modelId: message.modelId);
-                chatMessageContent.AuthorName = message.authorName;
-
-                messages.Add(chatMessageContent);
-                lastAgentName = message.authorName; // Actualizar el nombre del último agente que respondió
-            }
-
-            // Actualizar el mensaje final
-            finalMessage.Append(message.content);
-
-            StateHasChanged();
-        });
-    }
-#pragma warning restore SKEXP0001
-
-    private void AddAgent()
-    {
-        editingAgent = new ChatCompletionAgent("", "");
-        editingAgentIndex = -1;
-        isEditingAgent = true;
-    }
-
-    private void EditAgent(ChatCompletionAgent agent)
-    {
-        editingAgent = new ChatCompletionAgent(agent.Name, agent.Instructions);
-        editingAgentIndex = agents.IndexOf(agent);
-        isEditingAgent = true;
-    }
-
-    private void ToggleAgentStatus(ChatCompletionAgent agent)
-    {
-        agent.IsActive = !agent.IsActive;
-    }
-
-    private void SaveAgent()
-    {
-        if (editingAgentIndex >= 0)
-        {
-            agents[editingAgentIndex] = editingAgent;
+            lastMessage.Content += message.content;
         }
         else
         {
-            agents.Add(editingAgent);
+            ChatMessageContent chatMessageContent = new ChatMessageContent(AuthorRole.Assistant, message.content, modelId: message.modelId);
+            chatMessageContent.AuthorName = message.authorName;
+
+            messages.Add(chatMessageContent);
+            lastAgentName = message.authorName; // Actualizar el nombre del último agente que respondió
         }
-        isEditingAgent = false;
-    }
 
-    private void CancelEdit()
-    {
-        isEditingAgent = false;
-    }
+        // Actualizar el mensaje final
+        finalMessage.Append(message.content);
 
-    private void DeleteAgent(ChatCompletionAgent agent)
+        StateHasChanged();
+    });
+}
+#pragma warning restore SKEXP0001
+
+private void AddAgent()
+{
+    editingAgent = new ChatCompletionAgent("", "");
+    editingAgentIndex = -1;
+    isEditingAgent = true;
+}
+
+private void EditAgent(ChatCompletionAgent agent)
+{
+    editingAgent = new ChatCompletionAgent(agent.Name, agent.Instructions);
+    editingAgentIndex = agents.IndexOf(agent);
+    isEditingAgent = true;
+}
+
+private void ToggleAgentStatus(ChatCompletionAgent agent)
+{
+    agent.IsActive = !agent.IsActive;
+}
+
+private void SaveAgent()
+{
+    if (editingAgentIndex >= 0)
     {
-        agents.Remove(agent);
+        agents[editingAgentIndex] = editingAgent;
     }
+    else
+    {
+        agents.Add(editingAgent);
+    }
+    isEditingAgent = false;
+}
+
+private void CancelEdit()
+{
+    isEditingAgent = false;
+}
+
+private void DeleteAgent(ChatCompletionAgent agent)
+{
+    agents.Remove(agent);
+}
 }

@@ -28,4 +28,3 @@ public class QdrantClientConfig
     [Required] public required string Endpoint { get; set; }
     [Required] public required string ApiKey { get; set; }
 }
-

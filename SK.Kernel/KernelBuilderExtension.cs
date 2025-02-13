@@ -3,15 +3,15 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
 
 using SK.Kernel.Models;
 using SK.Kernel.Service;
 
-#pragma warning disable SKEXP0070
-
 namespace SK.Kernel;
 
-public static class KernelExtensions
+#pragma warning disable SKEXP0070;
+public static class KernelBuilderExtension
 {
     public static void AddBrainKernel(this IHostApplicationBuilder builder)
     {
@@ -24,6 +24,25 @@ public static class KernelExtensions
             var options = sp.GetRequiredService<IOptions<KernelOptions>>();
             return new KernelService(options);
         });
+
+        // Registrar ToolChatCompletionService
+        builder.Services.AddSingleton(sp =>
+        {
+            var options = sp.GetRequiredService<IOptions<KernelOptions>>();
+            return new ToolChatCompletionService(options);
+        });
+
+        // Registrar ChatService
+        builder.Services.AddSingleton<ChatService>();
+
+        // Registrar ToolService
+        builder.Services.AddSingleton<ToolService>();
+
+        // Registrar AgentService
+        builder.Services.AddSingleton<AgentService>();
+
+        // Registrar RAGService
+        builder.Services.AddSingleton<RAGService>();
     }
 
     public static IKernelBuilder GetKernelBuilder(KernelOptions options)
@@ -35,7 +54,7 @@ public static class KernelExtensions
 
         builder
             .AddOllamaChatCompletion(
-                options.OllamaAI.ChatModelName, 
+                options.OllamaAI.ChatModelName,
                 httpClient: CreateHttpClient(serviceProvider, options.OllamaAI.Endpoint));
 
         builder.AddLocalTextEmbeddingGeneration();

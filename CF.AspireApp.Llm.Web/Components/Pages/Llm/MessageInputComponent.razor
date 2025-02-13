@@ -4,27 +4,27 @@
 </EditForm>
 
 @code {
-    [Parameter] public EventCallback<string> OnMessageSubmit { get; set; }
-    [Parameter] public bool IsStreaming { get; set; }
-    [Parameter] public string? InitialUserInput { get; set; } // Nuevo parámetro opcional
+[Parameter] public EventCallback<string> OnMessageSubmit { get; set; }
+[Parameter] public bool IsStreaming { get; set; }
+[Parameter] public string? InitialUserInput { get; set; } // Nuevo parámetro opcional
 
-    private string UserInput { get; set; } = string.Empty;
-    private bool IsSendButtonDisabled => string.IsNullOrWhiteSpace(UserInput) || IsStreaming;
+private string UserInput { get; set; } = string.Empty;
+private bool IsSendButtonDisabled => string.IsNullOrWhiteSpace(UserInput) || IsStreaming;
 
-    protected override void OnInitialized()
+protected override void OnInitialized()
+{
+    if (!string.IsNullOrEmpty(InitialUserInput))
     {
-        if (!string.IsNullOrEmpty(InitialUserInput))
-        {
-            UserInput = InitialUserInput;
-        }
+        UserInput = InitialUserInput;
     }
+}
 
-    private async Task OnSubmit()
+private async Task OnSubmit()
+{
+    if (OnMessageSubmit.HasDelegate)
     {
-        if (OnMessageSubmit.HasDelegate)
-        {
-            await OnMessageSubmit.InvokeAsync(UserInput);
-            UserInput = string.Empty;
-        }
+        await OnMessageSubmit.InvokeAsync(UserInput);
+        UserInput = string.Empty;
     }
+}
 }

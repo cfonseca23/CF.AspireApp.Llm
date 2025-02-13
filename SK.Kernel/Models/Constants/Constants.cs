@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace SK.Kernel;
+﻿namespace SK.Kernel.Models.Constants;
 
 public static class Constants
 {

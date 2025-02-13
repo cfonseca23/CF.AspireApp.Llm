@@ -1,17 +1,14 @@
 ﻿using Microsoft.Extensions.VectorData;
 
-namespace SK.Kernel.ModelsRAG;
+namespace SK.Kernel.Data;
 
-public class Movie
+public class DicDataRag
 {
     [VectorStoreRecordKey]
-    public int Key { get; set; }
+    public string Id { get; set; }
 
     [VectorStoreRecordData]
-    public string Title { get; set; }
-
-    [VectorStoreRecordData]
-    public string Description { get; set; }
+    public string Text { get; set; }
 
     [VectorStoreRecordVector(384, DistanceFunction.CosineSimilarity)]
     public ReadOnlyMemory<float> Vector { get; set; }

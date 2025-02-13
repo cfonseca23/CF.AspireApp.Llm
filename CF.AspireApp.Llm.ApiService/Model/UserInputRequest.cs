@@ -1,6 +1,6 @@
 ﻿using Microsoft.SemanticKernel.ChatCompletion;
 
-using SK.Kernel.Memory;
+using SK.Kernel.Data;
 
 namespace CF.AspireApp.Llm.ApiService.Model;
 

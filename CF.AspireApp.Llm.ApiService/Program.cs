@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.SemanticKernel.Agents;
 
 using SK.Kernel;
+using SK.Kernel.Service;
 
 using System.Text;
 using System.Text.Json;

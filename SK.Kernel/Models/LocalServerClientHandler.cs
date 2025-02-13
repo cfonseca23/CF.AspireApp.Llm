@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 
-namespace SK.Kernel;
+namespace SK.Kernel.Models;
 
 public class LocalServerClientHandler : HttpClientHandler
 {

@@ -70,11 +70,21 @@ namespace ConsoleApp
 
         private async Task EnsureCollectionExists(int vectorSize)
         {
+            // Verificar si la colección ya existe
+            var exists = await _client.CollectionExistsAsync(_collectionName);
+            if (exists)
+            {
+                Console.WriteLine($"Collection '{_collectionName}' already exists. Skipping creation.");
+                return;
+            }
+
+            // Crear la colección si no existe
             await _client.CreateCollectionAsync(_collectionName, new VectorParams
             {
                 Size = (ulong)vectorSize,
                 Distance = Distance.Cosine
             });
+            Console.WriteLine($"Collection '{_collectionName}' created successfully.");
         }
 
         public async Task UpsertEmbeddingsAsync(string text, string url, IEmbeddingGenerator<string, Embedding<float>> generator)

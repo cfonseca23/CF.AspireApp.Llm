@@ -15,6 +15,9 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SK.Kernel", "SK.Kernel\SK.Kernel.csproj", "{A78E55A2-0625-468B-BDFF-78A4B7D1B379}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleApp", "ConsoleApp\ConsoleApp.csproj", "{8728C5B0-9163-4286-9319-82E7EF8C13A8}"
+	ProjectSection(ProjectDependencies) = postProject
+		{A78E55A2-0625-468B-BDFF-78A4B7D1B379} = {A78E55A2-0625-468B-BDFF-78A4B7D1B379}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

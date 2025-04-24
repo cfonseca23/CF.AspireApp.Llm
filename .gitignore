@@ -363,3 +363,5 @@ MigrationBackup/
 FodyWeavers.xsd
 .codegpt
 /.vscode
+/ConsoleApp/appsettings.Development.json
+/ConsoleApp/appsettings.json

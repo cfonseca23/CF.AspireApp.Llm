@@ -3,6 +3,7 @@ using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel;
 using System.Runtime.CompilerServices;
 using Microsoft.SemanticKernel.Agents;
+using System.Text.Json.Serialization.Metadata;
 
 #pragma warning disable SKEXP0110
 
@@ -51,7 +52,11 @@ public class ChatService
         return responseChat;
     }
 
-    public async IAsyncEnumerable<StreamingChatMessageContent> GetStreamingChatMessageContentsAsync(string userInput, ChatHistory? history, PromptExecutionSettings? executionSettings = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<StreamingChatMessageContent> GetStreamingChatMessageContentsAsync(
+        string userInput,
+        ChatHistory? history,
+        PromptExecutionSettings? executionSettings = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         history ??= new ChatHistory();
         if (!string.IsNullOrWhiteSpace(userInput))
@@ -61,9 +66,18 @@ public class ChatService
 
         var kernelSimple = _kernelService.GetKernel();
         var chatCompletionService = kernelSimple.GetRequiredService<IChatCompletionService>();
+
+        //// Configurar JsonSerializerOptions con DefaultJsonTypeInfoResolver
+        //var options = new JsonSerializerOptions
+        //{
+        //    TypeInfoResolver = new DefaultJsonTypeInfoResolver()
+        //};
+
         await foreach (var messageContent in chatCompletionService.GetStreamingChatMessageContentsAsync(history, executionSettings, kernelSimple, cancellationToken))
         {
             yield return messageContent;
         }
     }
+
+
 }

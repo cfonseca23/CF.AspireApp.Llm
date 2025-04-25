@@ -23,6 +23,11 @@ namespace ConsoleApp
                 var htmlContent = await httpClient.GetStringAsync(Url);
                 var textContent = HtmlExtractor.ExtractText(htmlContent);
                 await qdrantService.UpsertEmbeddingsAsync(textContent, Url, embeddingGenerator);
+
+                // NEW CODE: Generate query embedding and search Qdrant for partial matches
+                string searchTerm = "Walternate";
+                var searchEmbedding = await QdrantService.GenerateEmbeddingForQueryAsync(searchTerm, embeddingGenerator);
+                await qdrantService.SearchWithPartialMatchAsync(searchEmbedding, searchTerm);
             }
             catch (Exception ex)
             {

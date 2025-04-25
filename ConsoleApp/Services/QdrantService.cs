@@ -2,6 +2,8 @@ using Qdrant.Client;
 using Qdrant.Client.Grpc;
 using Microsoft.Extensions.AI;
 using ConsoleApp.Utilities;
+using System.Linq;
+using System.Collections.Generic;
 
 namespace ConsoleApp.Services
 {
@@ -65,6 +67,74 @@ namespace ConsoleApp.Services
 
             await _client.UpsertAsync(_collectionName, points);
             Console.WriteLine($"Embeddings for {url} upserted to Qdrant.");
+        }
+
+        public static async Task<float[]> GenerateEmbeddingForQueryAsync(string query, IEmbeddingGenerator<string, Embedding<float>> generator)
+        {
+            var embeddingResult = await generator.GenerateAsync([query]);
+            var embedding = embeddingResult.First().Vector.ToArray();
+            Console.WriteLine($"Generated embedding for '{query}':");
+            Console.WriteLine(string.Join(", ", embedding));
+            return embedding;
+        }
+
+
+        public async Task SearchWithPartialMatchAsync(float[] embedding, string searchTerm)
+        {
+            int limit = 20;
+            int offset = 0;
+            var allResults = new List<(float Score, string Chunk, string Url, bool Found)>();
+
+            while (true)
+            {
+                var results = await _client.SearchAsync(
+                    _collectionName,
+                    embedding,
+                    limit: (ulong)limit,
+                    offset: (ulong)offset
+                );
+
+                if (results == null || !results.Any())
+                    break;
+
+                foreach (var result in results)
+                {
+                    if (result.Payload != null && result.Payload.ContainsKey("chunk"))
+                    {
+                        string chunk = result.Payload["chunk"].ToString();
+                        string url = result.Payload.ContainsKey("url") ? result.Payload["url"].ToString() : "N/A";
+                        bool found = chunk.Contains(searchTerm, StringComparison.OrdinalIgnoreCase);
+                        allResults.Add((result.Score, chunk, url, found));
+                    }
+                }
+                offset += limit;
+            }
+
+            var sortedResults = allResults
+                .OrderByDescending(r => r.Found)
+                .ThenByDescending(r => r.Score)
+                .Take(5)
+                .ToList();
+
+            if (sortedResults.Count != 0)
+            {
+                Console.WriteLine($"Top 5 search results for '{searchTerm}' (partial matches allowed):");
+                foreach (var res in sortedResults)
+                {
+                    Console.WriteLine($"Score: {res.Score}");
+                    Console.WriteLine($"Chunk: {res.Chunk.ToUpper()}");
+                    Console.WriteLine($"URL: {res.Url}");
+                    if (res.Found)
+                    {
+                        Console.WriteLine($"*** Search term '{searchTerm}' found in this chunk! ***");
+                    }
+                    Console.WriteLine();
+                }
+            }
+            else
+            {
+                Console.WriteLine($"No relevant results found for '{searchTerm}'.");
+            }
         }
     }
 }
